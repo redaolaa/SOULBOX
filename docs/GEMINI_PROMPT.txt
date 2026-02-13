@@ -1,0 +1,20 @@
+Copy this into Gemini (after uploading your Excel/CSV and the spec):
+
+---
+Convert my attached Programming Sheet (Excel or CSV) into the exact import format required by the SOULBOX app.
+
+Use the full specification in the attached GEMINI_TEMPLATE_SPEC.md. In particular:
+
+1. Output a single CSV with this exact header row:
+   weekStartDate,dayOfWeek,dayType,station,phase,slot,exerciseName,focus,isStatic,staticCondition
+
+2. One data row per exercise. 72 rows per week (6 days × 12 exercises per day). Use the day → dayType and focus table from the spec; do not guess.
+
+3. For Monday, Wednesday, and Saturday Station 3 only: set exerciseName = "Nonstop sparring", isStatic = TRUE, and staticCondition = technique-station3 or conditioning-station3 as specified. Output 3 rows (slots A, B, C) for each.
+
+4. For any empty cell in my sheet, use exerciseName = [FILL].
+
+5. weekStartDate must be the Sunday of that week (e.g. 2026-01-04). I will tell you the week number or date if needed.
+
+Give me the resulting CSV (paste the contents or provide a downloadable file).
+---

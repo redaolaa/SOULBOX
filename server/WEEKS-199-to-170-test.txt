@@ -1,0 +1,12 @@
+week 199-195.. weekStartDate,dayOfWeek,dayType,station,phase,slot,exerciseName,focus,isStatic,staticCondition
+2025-09-21,Thursday,Kickboxing,1,1,B,REVERSE BURPEES,Mixed,FALSE,
+2025-12-14,Wednesday,Conditioning,3,,A,Nonstop sparring,Lower,TRUE,conditioning-station3
+2025-12-14,Wednesday,Conditioning,3,,B,Nonstop sparring,Lower,TRUE,conditioning-station3
+2025-12-14,Wednesday,Conditioning,3,,C,Nonstop sparring,Lower,TRUE,conditioning-station3
+2025-09-21,Thursday,Kickboxing,1,1,C,"STEP IN, PIVOT, SWITCH",Mixed,FALSE,
+week 194 to 190: weekStartDate,dayOfWeek,dayType,station,phase,slot,exerciseName,focus,isStatic,staticCondition
+2025-11-16,Wednesday,Conditioning,2,,C,RAPID KNEES,Lower,FALSE,
+2025-12-14,Wednesday,Conditioning,3,,A,Nonstop sparring,Lower,TRUE,conditioning-station3
+2025-12-14,Wednesday,Conditioning,3,,B,Nonstop sparring,Lower,TRUE,conditioning-station3
+2025-12-14,Wednesday,Conditioning,3,,C,Nonstop sparring,Lower,TRUE,conditioning-station3
+2025-11-16,Thursday,Kickboxing,1,1,A,CHEST PRESS,Mixed,FALSE,

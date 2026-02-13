@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SOULBOX - Exercise Tracker</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>SOULBOX</h1>
+            <p class="subtitle">Exercise Tracker</p>
+        </header>
+
+        <div class="controls">
+            <button id="prevBtn" class="btn btn-secondary">← Previous</button>
+            <span class="exercise-counter">
+                <span id="currentIndex">0</span> / <span id="totalExercises">0</span>
+            </span>
+            <button id="nextBtn" class="btn btn-secondary">Next →</button>
+        </div>
+
+        <div class="exercise-card" id="exerciseCard">
+            <div class="loading">Loading exercises...</div>
+        </div>
+
+        <div class="actions">
+            <button id="markUsedBtn" class="btn btn-primary">Mark as Used</button>
+            <button id="refreshBtn" class="btn btn-secondary">Refresh List</button>
+        </div>
+
+        <div class="filters">
+            <h3>Filters</h3>
+            <div class="filter-group">
+                <label>
+                    <input type="checkbox" id="filterBoxing" checked>
+                    Boxing
+                </label>
+                <label>
+                    <input type="checkbox" id="filterKickboxing" checked>
+                    Kickboxing
+                </label>
+            </div>
+            <div class="filter-group">
+                <label>
+                    Station:
+                    <select id="filterStation">
+                        <option value="all">All</option>
+                        <option value="1">Station 1</option>
+                        <option value="2">Station 2</option>
+                        <option value="3">Station 3</option>
+                    </select>
+                </label>
+                <label>
+                    Focus:
+                    <select id="filterFocus">
+                        <option value="all">All</option>
+                        <option value="Upper">Upper</option>
+                        <option value="Lower">Lower</option>
+                        <option value="Mixed">Mixed</option>
+                    </select>
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

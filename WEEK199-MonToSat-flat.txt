@@ -1,0 +1,61 @@
+weekStartDate	dayOfWeek	dayType	station	phase	slot	exerciseName	focus	isStatic	staticCondition
+2026-01-04	Monday	Technique	1	1	A	ATT/DEF	Mixed	FALSE	
+2026-01-04	Monday	Technique	1	1	B	ATT/DEF	Mixed	FALSE	
+2026-01-04	Monday	Technique	1	1	C	ATT/DEF	Mixed	FALSE	
+2026-01-04	Monday	Technique	1	2	A	1, BLK / SLIP R, 2	Mixed	FALSE	
+2026-01-04	Monday	Technique	1	2	B	1, BLK, 2, BLK / SLIP R, 2, PARRY, 4	Mixed	FALSE	
+2026-01-04	Monday	Technique	1	2	C	1, BLK, 2, BLK, 3/…, PARRY, 4, WV R	Mixed	FALSE	
+2026-01-04	Monday	Technique	2		A	1 - 4 - 4 - 3 - 2 - 1	Mixed	FALSE	
+2026-01-04	Monday	Technique	2		B	1 - 2 - SLIP R - 2 - SLIP R - 4 - WEAVE R - 4	Mixed	FALSE	
+2026-01-04	Monday	Technique	2		C	SLIP R, STRT, JAB, STRT …	Mixed	FALSE	
+2026-01-04	Monday	Technique	3		A	Nonstop sparring	Mixed	TRUE	technique-station3
+2026-01-04	Monday	Technique	3		B	Nonstop sparring	Mixed	TRUE	technique-station3
+2026-01-04	Monday	Technique	3		C	Nonstop sparring	Mixed	TRUE	technique-station3
+2026-01-04	Tuesday	Boxing	1	1	A	R STEP SPLIT SQUATS	Upper	FALSE	
+2026-01-04	Tuesday	Boxing	1	1	B	STEP POP SQUATS	Upper	FALSE	
+2026-01-04	Tuesday	Boxing	1	1	C	R STEP CURTSY LUNGES	Upper	FALSE	
+2026-01-04	Tuesday	Boxing	1	2	A	L STEP SPLIT SQUATS	Upper	FALSE	
+2026-01-04	Tuesday	Boxing	1	2	B	STEP PLANK HAND STEP UPS	Upper	FALSE	
+2026-01-04	Tuesday	Boxing	1	2	C	L STEP CURTSY LUNGES	Upper	FALSE	
+2026-01-04	Tuesday	Boxing	2		A	1 - 2 - 2 - 3 - 4	Upper	FALSE	
+2026-01-04	Tuesday	Boxing	2		B	1 - 2 - SLIP R/L - 1 - SLIP L/R - 4 - WEAVE R	Upper	FALSE	
+2026-01-04	Tuesday	Boxing	2		C	10 SECS JABS 10 SECS STRT 10 SECS L HOOKS	Upper	FALSE	
+2026-01-04	Tuesday	Boxing	3		A	MIRRORING	Upper	FALSE	
+2026-01-04	Tuesday	Boxing	3		B	LIGHT SPARRING	Upper	FALSE	
+2026-01-04	Tuesday	Boxing	3		C	SWITCHES	Upper	FALSE	
+2026-01-04	Wednesday	Conditioning	1	1	A	RAPID 1, 2	Lower	FALSE	
+2026-01-04	Wednesday	Conditioning	1	1	B	RAPID 3, 4	Lower	FALSE	
+2026-01-04	Wednesday	Conditioning	1	1	C	RAPID BODY	Lower	FALSE	
+2026-01-04	Wednesday	Conditioning	1	2	A	[FILL]	Lower	FALSE	
+2026-01-04	Wednesday	Conditioning	1	2	B	[FILL]	Lower	FALSE	
+2026-01-04	Wednesday	Conditioning	1	2	C	[FILL]	Lower	FALSE	
+2026-01-04	Wednesday	Conditioning	2		A	5X SQUAT TO R BODY KICK 5X SQUAT TO L BODY KICK	Lower	FALSE	
+2026-01-04	Wednesday	Conditioning	2		B	5X BACKWARD LUNGES TO R FRONT KICK 5X BACKWARD LUNGES TO L FRONT KICK	Lower	FALSE	
+2026-01-04	Wednesday	Conditioning	2		C	1, 2 TO BURPEE	Lower	FALSE	
+2026-01-04	Wednesday	Conditioning	3		A	Nonstop sparring	Lower	TRUE	conditioning-station3
+2026-01-04	Wednesday	Conditioning	3		B	Nonstop sparring	Lower	TRUE	conditioning-station3
+2026-01-04	Wednesday	Conditioning	3		C	Nonstop sparring	Lower	TRUE	conditioning-station3
+2026-01-04	Thursday	Kickboxing	1	1	A	PUSH-UPS TO SHOULDER TAPS	Mixed	FALSE	
+2026-01-04	Thursday	Kickboxing	1	1	B	PLANK TO TOE TAP	Mixed	FALSE	
+2026-01-04	Thursday	Kickboxing	1	1	C	R KNEELING SIDE RAISES	Mixed	FALSE	
+2026-01-04	Thursday	Kickboxing	1	2	A	PUSH-UPS KNEE DRIVE	Mixed	FALSE	
+2026-01-04	Thursday	Kickboxing	1	2	B	MOUNTAIN CLIMBER	Mixed	FALSE	
+2026-01-04	Thursday	Kickboxing	1	2	C	L KNEELING SIDE RAISES	Mixed	FALSE	
+2026-01-04	Thursday	Kickboxing	2		A	1, 2, FRONT KICK, F FRONT KICK, SPINNING ELBOW	Mixed	FALSE	
+2026-01-04	Thursday	Kickboxing	2		B	1, 2, 2X R BODY KICK	Mixed	FALSE	
+2026-01-04	Thursday	Kickboxing	2		C	1, 2, QUESTION MARK KICK	Mixed	FALSE	
+2026-01-04	Thursday	Kickboxing	3		A	ATT/DEF	Mixed	FALSE	
+2026-01-04	Thursday	Kickboxing	3		B	LIGHT SPARRING	Mixed	FALSE	
+2026-01-04	Thursday	Kickboxing	3		C	TENNIS BALL	Mixed	FALSE	
+2026-01-04	Saturday	Technique	1	1	A	ATT/DEF	Lower	FALSE	
+2026-01-04	Saturday	Technique	1	1	B	ATT/DEF	Lower	FALSE	
+2026-01-04	Saturday	Technique	1	1	C	ATT/DEF	Lower	FALSE	
+2026-01-04	Saturday	Technique	1	2	A	STEP IN 1 / PARRY, PIVOT	Lower	FALSE	
+2026-01-04	Saturday	Technique	1	2	B	STEP IN 1 / PARRY, PIVOT, 3	Lower	FALSE	
+2026-01-04	Saturday	Technique	1	2	C	STEP IN 1 / PARRY, PIVOT, 3, 2	Lower	FALSE	
+2026-01-04	Saturday	Technique	2		A	1 - 2 - 1 - 3 - 3B - 4	Lower	FALSE	
+2026-01-04	Saturday	Technique	2		B	1 - 2 - L SIDE STEP - 3 - 2 - 1	Lower	FALSE	
+2026-01-04	Saturday	Technique	2		C	FREESTYLE	Lower	FALSE	
+2026-01-04	Saturday	Technique	3		A	Nonstop sparring	Lower	TRUE	technique-station3
+2026-01-04	Saturday	Technique	3		B	Nonstop sparring	Lower	TRUE	technique-station3
+2026-01-04	Saturday	Technique	3		C	Nonstop sparring	Lower	TRUE	technique-station3
