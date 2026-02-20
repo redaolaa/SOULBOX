@@ -187,6 +187,60 @@ SOULBOX/
 3. **Check Exercise Library**: Make sure you have enough exercises in each category (Station 1, 2, 3) for each day type
 4. **Static Exercises**: Remember to add "Non-stop Sparring" as a static exercise for Station 3, position B on Kickboxing and Boxing days
 
+## Deployment
+
+The app can be deployed as a single service (Node server serves the built React app). Use **MongoDB Atlas** for the database in production.
+
+### Option A: Render (recommended)
+
+1. **MongoDB Atlas**
+   - Create a free cluster at [mongodb.com/atlas](https://www.mongodb.com/atlas), then get the connection string (e.g. `mongodb+srv://...`).
+
+2. **Render**
+   - Go to [render.com](https://render.com) → New → Web Service.
+   - Connect your repo (e.g. GitHub).
+   - **Build command:** `npm run install:all && npm run build`  
+     (or `npm ci` in root if you add a root `package-lock.json`, then `cd client && npm ci && npm run build`).
+   - **Start command:** `cd server && npm start`  
+     (or from repo root: `NODE_ENV=production node server/index.js` after building the client into `client/dist`).
+   - **Environment variables** (in Render dashboard):
+     - `NODE_ENV` = `production`
+     - `MONGODB_URI` = your Atlas connection string
+     - `JWT_SECRET` = a long random string (e.g. `openssl rand -base64 32`)
+   - **Important:** So the server can serve the frontend, the client must be built in CI. Use:
+     - **Build:** `npm run install:all && npm run build`  
+     - **Start:** `NODE_ENV=production node server/index.js`  
+     and set **Root Directory** to blank (repo root). If Render runs the start command from repo root, the server will find `client/dist` (built in the Build step).
+
+   If Render runs the start command from repo root, use **Start command:** `npm run build && npm start` so the build runs on the same machine that serves. Otherwise use a two-step Build command that leaves `client/dist` in place, then Start: `npm start` (which runs `cd server && npm start`). Adjust so that when `node server/index.js` runs, the current working directory is the repo root (e.g. **Start command:** `cd server && node index.js` and ensure **Build command** runs from root and outputs to `client/dist`). Simplest: **Build:** `npm run install:all && npm run build` and **Start:** `cd server && node index.js`; then the server runs from `server/`, so `__dirname` is `server/` and `../client/dist` is correct.
+
+3. Deploy. Your app URL will be something like `https://soulbox-xxx.onrender.com`.
+
+### Option B: Railway
+
+1. **MongoDB Atlas** (same as above).
+2. **Railway:** [railway.app](https://railway.app) → New Project → Deploy from GitHub.
+3. **Settings:** Add env vars `NODE_ENV=production`, `MONGODB_URI`, `JWT_SECRET`.
+4. **Build:** Root directory = repo root. Build command: `npm run install:all && npm run build`. Start: `cd server && node index.js` (or use the root `npm start` if it runs from root and the server still sees `client/dist`).  
+   If Railway runs start from root: **Start command:** `npm start` (runs `cd server && npm start`; the `cd server` is from root, so `client/dist` is at `./client/dist` relative to root; when Node runs `server/index.js`, `__dirname` is `.../server`, so `../client/dist` is correct).
+
+### Option C: Docker
+
+From the repo root:
+
+```bash
+docker build -t soulbox .
+docker run -p 3000:3000 -e MONGODB_URI="your-atlas-uri" -e JWT_SECRET="your-secret" soulbox
+```
+
+Set `NODE_ENV=production` in the image (already set in Dockerfile). For production, use a proper secrets mechanism instead of `-e`.
+
+### Production checklist
+
+- [ ] MongoDB Atlas cluster created and connection string copied.
+- [ ] `MONGODB_URI` and `JWT_SECRET` set in the host (Render/Railway/Docker); never commit `.env` with real secrets.
+- [ ] Build step produces `client/dist`; start command runs the Node server so it can serve `../client/dist` (e.g. from `server/` with `node index.js`).
+
 ## Troubleshooting
 
 - **MongoDB Connection Error**: Make sure MongoDB is running locally or your Atlas connection string is correct

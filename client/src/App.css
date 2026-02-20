@@ -75,6 +75,78 @@
   color: var(--text-light);
 }
 
+/* Modal overlay (e.g. Change password) */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  padding: 2rem;
+}
+
+.modal-content {
+  background: var(--surface);
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+  border: 1px solid var(--border);
+}
+
+.change-password-modal {
+  width: 100%;
+  max-width: 400px;
+  padding: 1.5rem;
+}
+
+.change-password-modal h3 {
+  margin: 0 0 1rem;
+  color: var(--text);
+}
+
+.change-password-modal .form-group {
+  margin-bottom: 1rem;
+}
+
+.change-password-modal .form-group label {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: var(--text-light);
+  font-size: 0.9rem;
+}
+
+.change-password-modal .form-group input {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 1rem;
+  background: var(--background);
+  color: var(--text);
+}
+
+.change-password-modal .form-error {
+  color: #c0392b;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.change-password-modal .modal-success {
+  color: var(--primary-color);
+  margin: 0;
+}
+
+.change-password-modal .modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  margin-top: 1.25rem;
+}
+
 /* Buttons */
 .btn-primary {
   background-color: var(--primary-color);
@@ -384,21 +456,39 @@
   justify-content: center;
 }
 
-.week-actions-main {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.week-actions-main .btn-generate-week {
+.week-actions .btn-generate-week {
   padding: 0.75rem 1.5rem;
   font-size: 1rem;
 }
 
-.week-actions-hint {
-  font-size: 0.875rem;
-  color: var(--text-light);
+.calendar-generate-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  background: #f8d7da;
+  border: 1px solid #f5c2c7;
+  border-radius: 8px;
+  color: #842029;
+  font-size: 0.95rem;
+}
+
+.calendar-generate-error-dismiss {
+  flex-shrink: 0;
+  padding: 0.2rem 0.5rem;
+  font-size: 1.25rem;
+  line-height: 1;
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.calendar-generate-error-dismiss:hover {
+  background: rgba(0, 0, 0, 0.08);
 }
 
 .workout-preview-header {
@@ -419,8 +509,8 @@
 
 .week-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 2rem;
   margin-bottom: 2rem;
 }
 
@@ -428,7 +518,7 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 1.5rem;
+  padding: 1.5rem 1.75rem;
   cursor: pointer;
   transition: all 0.3s;
   overflow: visible;
@@ -445,7 +535,8 @@
 .day-card.selected {
   border-color: var(--primary-color);
   background: var(--hover-bg);
-  min-width: 300px;
+  min-width: 380px;
+  padding: 1.5rem 1.75rem;
 }
 
 .day-card.has-workout {
@@ -477,6 +568,7 @@
 
 .workout-preview {
   margin-top: 0.5rem;
+  min-width: 0;
 }
 
 .workout-chip {
@@ -524,14 +616,19 @@
 }
 
 .past-week-station {
-  margin-bottom: 0.75rem;
+  margin-bottom: 1.25rem;
   min-width: 0;
   overflow: visible;
 }
 
+.past-week-station:last-child {
+  margin-bottom: 0;
+}
+
 .past-week-station-title {
   font-weight: 600;
-  margin-bottom: 0.25rem;
+  font-size: 0.875rem;
+  margin-bottom: 0.5rem;
   color: var(--text-light);
 }
 
@@ -548,7 +645,9 @@
 
 .past-week-phase-label {
   font-weight: 500;
-  margin-bottom: 0.15rem;
+  font-size: 0.8125rem;
+  margin-bottom: 0.35rem;
+  color: var(--text-light);
 }
 
 .station1-triset-selector {
@@ -557,6 +656,101 @@
 
 .station1-triset-selector .triset-select {
   margin-bottom: 0.35rem;
+}
+
+.station1-triset-selector .editable-exercise-dropdown {
+  min-width: 320px;
+  max-width: 420px;
+  max-height: 380px;
+}
+
+/* Tri-set trigger: title + Phase 2 A. B. C. on separate lines */
+.triset-trigger-content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.4rem;
+  text-align: left;
+}
+
+.triset-trigger-title {
+  font-weight: 500;
+}
+
+.triset-trigger-week,
+.triset-option-week {
+  font-weight: 600;
+  font-size: 0.95em;
+  color: var(--primary-color);
+  margin-bottom: 0.2rem;
+}
+
+.triset-option-week {
+  display: block;
+  padding-bottom: 0.25rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 0.35rem;
+}
+
+.triset-trigger-phase2,
+.triset-option-phase2 {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  font-size: 0.9em;
+  color: var(--text-light);
+}
+
+.triset-phase2-divider {
+  display: block;
+  height: 0;
+  border-top: 1px solid var(--border);
+  margin: 0.4rem 0;
+}
+
+.triset-phase2-line {
+  display: block;
+  padding: 0.25rem 0 0.25rem 0.5rem;
+  line-height: 1.4;
+  border-left: 2px solid var(--border);
+  margin-left: 0.15rem;
+}
+
+.triset-phase2-line::before {
+  content: none;
+}
+
+/* Tri-set dropdown options: A. B. C. well spaced and easy to read */
+.editable-exercise-option.triset-option {
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  white-space: normal;
+  line-height: 1.4;
+}
+
+.triset-option-title {
+  font-weight: 500;
+  padding-bottom: 0.25rem;
+  border-bottom: 1px solid var(--border);
+  width: 100%;
+}
+
+.triset-dropdown-simple .triset-option {
+  padding: 0.65rem 1rem;
+}
+
+.triset-option-phase2 {
+  width: 100%;
+  gap: 0.5rem;
+}
+
+.triset-option-phase2 .triset-phase2-line {
+  padding: 0.35rem 0 0.35rem 0.6rem;
+  margin-left: 0;
 }
 
 .past-week-list {
@@ -581,8 +775,14 @@
 }
 
 .past-week-list.editable-list li {
-  margin-bottom: 0.6rem;
+  margin-bottom: 0;
+  padding: 0.4rem 0;
   width: 100%;
+  border-bottom: 1px solid var(--border);
+}
+
+.past-week-list.editable-list li:last-child {
+  border-bottom: none;
 }
 
 .past-week-list.editable-list {
@@ -594,11 +794,18 @@
 .day-expanded {
   overflow: visible;
   width: 100%;
+  min-width: 0;
+  padding-top: 0.5rem;
 }
 
 .day-expanded .past-week-station {
   min-width: 0;
   overflow: visible;
+  max-width: 100%;
+}
+
+.day-expanded .past-week-list {
+  min-width: 0;
 }
 
 .day-expanded .past-week-list li {
@@ -618,7 +825,8 @@
   flex-shrink: 0;
   font-weight: 600;
   color: var(--text-light);
-  min-width: 1.2rem;
+  width: 1.5rem;
+  text-align: right;
 }
 
 .editable-exercise-row {
@@ -654,9 +862,62 @@
   cursor: not-allowed;
 }
 
+.editable-exercise-slot-fixed {
+  display: grid;
+  grid-template-columns: 1.5rem 1fr auto;
+  align-items: center;
+  gap: 0 0.75rem;
+  width: 100%;
+  min-height: 1.75rem;
+}
+
+.editable-exercise-slot-fixed .editable-slot-label {
+  width: auto;
+  text-align: right;
+}
+
+.editable-slot-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.editable-exercise-fixed-name {
+  min-width: 0;
+  font-size: 0.9375rem;
+  line-height: 1.35;
+  color: var(--text);
+  word-break: break-word;
+}
+
+.editable-exercise-edit-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-light);
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.editable-exercise-edit-btn:hover {
+  background: var(--hover-bg);
+  color: var(--text);
+  opacity: 1;
+}
+
+.editable-exercise-edit-btn .editable-pen-icon {
+  display: block;
+}
+
 .editable-exercise-select-trigger {
   cursor: pointer;
-  user-select: none;
 }
 .editable-exercise-select-trigger.open {
   border-color: var(--primary-color);
@@ -761,6 +1022,28 @@
 }
 .editable-exercise-dropdown li {
   list-style: none;
+}
+
+.editable-exercise-dropdown-search-wrap {
+  padding: 0.35rem 0.5rem;
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  z-index: 1;
+  border-bottom: 1px solid var(--border);
+}
+.editable-exercise-dropdown-search {
+  width: 100%;
+  padding: 0.4rem 0.5rem;
+  font-size: 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--background);
+  color: var(--text);
+  box-sizing: border-box;
+}
+.editable-exercise-dropdown-search::placeholder {
+  color: var(--text-light);
 }
 
 .editable-exercise-option:hover {
@@ -954,10 +1237,77 @@
   color: var(--text);
 }
 
+.collapsible-section {
+  margin-bottom: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.collapsible-section-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  text-align: left;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--bg);
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.collapsible-section-header:hover {
+  background: var(--surface);
+}
+
+.collapsible-section-title {
+  flex: 1;
+}
+
+.collapsible-section-meta {
+  font-size: 0.9rem;
+  font-weight: 400;
+  color: var(--text-light);
+}
+
+.collapsible-section-chevron {
+  font-size: 0.75rem;
+  color: var(--text-light);
+}
+
+.collapsible-section .form-help,
+.collapsible-section .triset-day-buttons,
+.collapsible-section .triset-folder {
+  margin-left: 1rem;
+  margin-right: 1rem;
+}
+
+.collapsible-section .form-help:first-of-type {
+  margin-top: 0.75rem;
+}
+
+.collapsible-section .btn-secondary {
+  margin: 0.5rem 1rem 0.75rem;
+}
+
+.exercises-section .filters {
+  padding: 0.75rem 1rem 0;
+}
+
+.exercises-section .exercise-list,
+.exercises-section .loading {
+  padding: 0 1rem 1rem;
+}
+
 .trisets-section {
   margin-bottom: 2rem;
-  padding: 1rem 0;
-  border-top: 1px solid var(--border);
+  padding: 0;
+  border-top: none;
 }
 
 .trisets-section h3 {
@@ -970,6 +1320,73 @@
   margin-bottom: 0.75rem;
   color: var(--text-light);
   font-size: 0.9rem;
+}
+
+.triset-form-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.triset-form-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.triset-form-slots {
+  margin-top: 1rem;
+}
+
+.triset-form-slots-intro {
+  margin-bottom: 0.75rem;
+}
+
+.triset-slot-row {
+  margin-bottom: 0.75rem;
+}
+
+.triset-add-in-folder {
+  margin-bottom: 1rem;
+}
+
+.triset-create-new-wrap {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.triset-create-new-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.triset-create-new-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.triset-create-new-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+}
+
+.triset-create-new-btn {
+  flex-shrink: 0;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.85rem;
 }
 
 .triset-form .form-row {
@@ -985,20 +1402,179 @@
   font-size: 0.85em;
 }
 
+/* Tri-set day toggle: Monday / Saturday buttons */
+.triset-day-buttons {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+}
+
+.triset-day-btn {
+  padding: 0.5rem 1rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.triset-day-btn:hover {
+  background: var(--bg);
+  border-color: var(--text-light);
+}
+
+.triset-day-btn.active {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+  color: #fff;
+}
+
+/* Folder-style grouping for tri-set list */
+.triset-folder {
+  margin-top: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.triset-folder-title {
+  margin: 0;
+  padding: 0.65rem 1rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.triset-folder-content {
+  padding: 1rem;
+}
+
+.triset-folder .triset-list {
+  margin-top: 0;
+}
+
 .triset-list {
   margin-top: 1rem;
 }
 
-.triset-list ul {
+.triset-list-count {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+}
+
+.triset-list-ul {
   list-style: none;
   padding: 0;
   margin: 0.5rem 0 0;
 }
 
-.triset-list li {
-  padding: 0.4rem 0;
+.triset-list li.triset-list-item {
+  padding: 0.5rem 0;
   border-bottom: 1px solid var(--border);
   font-size: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+/* Force dropdown-style items to stack: week, tag, then A/B/C block */
+.triset-list-item-dropdown-style {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+}
+
+.triset-list-item-dropdown-style .triset-list-abc.triset-option-phase2 {
+  display: flex !important;
+  flex-direction: column !important;
+  margin-top: 0.35rem;
+}
+
+.triset-list-item-dropdown-style .triset-option-week {
+  display: block;
+  padding-bottom: 0.25rem;
+  margin-bottom: 0.25rem;
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+  font-size: 0.95em;
+  color: var(--primary-color);
+}
+
+.triset-list-item-dropdown-style .triset-list-item-tag {
+  font-size: 0.75em;
+  color: var(--text-light);
+  text-transform: lowercase;
+  margin-bottom: 0.2rem;
+}
+
+/* Tri-set list: semantic ol so 3 exercises always show (A. B. C.) */
+.triset-list-item-header {
+  margin-bottom: 0.35rem;
+}
+
+.triset-list-exercises {
+  list-style: none;
+  padding-left: 0;
+  margin: 0 0 0 0.5rem;
+  border-left: 2px solid var(--border);
+  padding-left: 0.6rem;
+}
+
+.triset-list-exercises li {
+  padding: 0.25rem 0;
+  line-height: 1.4;
+  font-size: 0.9rem;
+}
+
+.triset-list-item-dropdown-style .triset-list-phase-label {
+  margin-top: 0.5rem;
+  margin-bottom: 0.2rem;
+}
+
+.triset-list-item-title {
+  font-weight: 500;
+}
+
+.triset-list-item-tag {
+  font-size: 0.8em;
+  color: var(--text-light);
+  margin-left: 0.25rem;
+}
+
+.triset-list-abc {
+  margin-top: 0.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.triset-list-abc .triset-phase2-divider {
+  margin: 0.25rem 0;
+}
+
+.triset-list-abc .triset-phase2-line {
+  padding: 0.2rem 0 0.2rem 0.5rem;
+}
+
+.triset-list-phase {
+  margin-top: 0.35rem;
+}
+
+.triset-list-phase-label {
+  font-size: 0.8em;
+  font-weight: 600;
+  color: var(--text-light);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  display: block;
+  margin-bottom: 0.2rem;
 }
 
 .exercise-form {
@@ -1133,9 +1709,38 @@
   box-shadow: 0 2px 8px var(--shadow);
 }
 
+.exercise-item .exercise-edit-form {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+.exercise-item .exercise-edit-form .form-row,
+.exercise-item .exercise-edit-form .form-group {
+  margin-bottom: 0.75rem;
+}
+
+.exercise-edit-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.exercise-item-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
 .exercise-info h4 {
   margin-bottom: 0.5rem;
   color: var(--text);
+}
+
+.exercise-last-saved {
+  margin-top: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--text-light);
 }
 
 .exercise-tags {

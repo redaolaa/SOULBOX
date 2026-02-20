@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import api from '../utils/api';
 import { getWorkoutId } from '../utils/workoutId';
+import EditableExerciseSlot from './EditableExerciseSlot';
 
 /**
  * Saturday Station 1: Phase 1 + Phase 2 linked (6 exercises). One tri-set fills both phases in sequence.
@@ -9,6 +10,10 @@ export default function SaturdayStation1Selector({ workoutId, workout, weekStart
   const [triSets, setTriSets] = useState([]);
   const [saving, setSaving] = useState(false);
   const [selectedId, setSelectedId] = useState('');
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [dropdownSearch, setDropdownSearch] = useState('');
+  const dropdownRef = useRef(null);
+  const searchInputRef = useRef(null);
 
   useEffect(() => {
     if (!workoutId || disabled) return;
@@ -38,12 +43,40 @@ export default function SaturdayStation1Selector({ workoutId, workout, weekStart
     setSelectedId(match ? match._id : '');
   }, [workout, triSets]);
 
-  const handleChange = (e) => {
-    const triSetId = e.target.value;
-    const id = getWorkoutId(workoutId);
+  const displayName = (ts) => {
+    if (ts.concept && ts.concept.trim()) return ts.concept.trim();
+    const p1 = (ts.exerciseIds || []).map((ex) => (typeof ex === 'object' ? ex.name : '')).filter(Boolean);
+    return p1.length ? p1.join(' → ') : 'Tri-set';
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setDropdownOpen(false);
+        setDropdownSearch('');
+      }
+    };
+    if (dropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      searchInputRef.current?.focus();
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    } else {
+      setDropdownSearch('');
+    }
+  }, [dropdownOpen]);
+
+  const searchRaw = (dropdownSearch || '').trim().toLowerCase().replace(/^[.\/]+/, '');
+  const filteredTriSets = searchRaw
+    ? triSets.filter((ts) => displayName(ts).toLowerCase().startsWith(searchRaw))
+    : triSets;
+
+  const handleSelectTriSet = (triSetId) => {
     if (!triSetId) return;
-    if (!id && !(weekStartDate && dayOfWeek)) return;
+    setDropdownOpen(false);
+    setDropdownSearch('');
     setSaving(true);
+    const id = getWorkoutId(workoutId);
+    if (!id && !(weekStartDate && dayOfWeek)) return;
     const payload = { triSetId };
     if (weekStartDate) payload.weekStartDate = weekStartDate;
     if (dayOfWeek) payload.dayOfWeek = dayOfWeek;
@@ -58,11 +91,8 @@ export default function SaturdayStation1Selector({ workoutId, workout, weekStart
       .finally(() => setSaving(false));
   };
 
-  const displayName = (ts) => {
-    if (ts.concept && ts.concept.trim()) return ts.concept.trim();
-    const p1 = (ts.exerciseIds || []).map((ex) => (typeof ex === 'object' ? ex.name : '')).filter(Boolean);
-    return p1.length ? p1.join(' → ') : 'Tri-set';
-  };
+  const selectedTriSet = triSets.find((ts) => ts._id === selectedId);
+  const triggerLabel = selectedTriSet ? displayName(selectedTriSet) : 'Select tri-set…';
 
   const phase1 = workout?.station1?.phase1 || [];
   const phase2 = workout?.station1?.phase2 || [];
@@ -83,35 +113,107 @@ export default function SaturdayStation1Selector({ workoutId, workout, weekStart
   }
 
   return (
-    <div className="station1-triset-selector saturday-station1">
+    <div className="station1-triset-selector saturday-station1" ref={dropdownRef}>
       <div className="past-week-phase-label">Station 1 (Phase 1 + Phase 2 — linked)</div>
-      <select
-        className="editable-exercise-select triset-select"
-        value={selectedId}
-        onChange={handleChange}
-        disabled={saving}
-        title="Select a tri-set — Phase 1 and Phase 2 update together in sequence"
-      >
-        <option value="">Select tri-set…</option>
-        {triSets.map((ts) => (
-          <option key={ts._id} value={ts._id}>{displayName(ts)}</option>
-        ))}
-      </select>
+      <div style={{ position: 'relative' }}>
+        <div
+          className={`editable-exercise-select editable-exercise-select-trigger triset-select ${dropdownOpen ? 'open' : ''}`}
+          onClick={() => !saving && setDropdownOpen((v) => !v)}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (!saving) setDropdownOpen((v) => !v); } }}
+          role="button"
+          tabIndex={0}
+          title="Select a tri-set — Phase 1 and Phase 2 update together in sequence"
+        >
+          {triggerLabel}
+        </div>
+        {dropdownOpen && (
+          <ul className="editable-exercise-dropdown" role="listbox">
+            <li className="editable-exercise-dropdown-search-wrap">
+              <input
+                ref={searchInputRef}
+                type="text"
+                className="editable-exercise-dropdown-search"
+                placeholder="Search tri-sets…"
+                value={dropdownSearch}
+                onChange={(e) => setDropdownSearch(e.target.value)}
+                onKeyDown={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
+                aria-label="Filter tri-sets"
+              />
+            </li>
+            <li>
+              <button type="button" className="editable-exercise-option empty" onClick={() => setDropdownOpen(false)}>
+                Select tri-set…
+              </button>
+            </li>
+            {filteredTriSets.map((ts) => (
+              <li key={ts._id}>
+                <button
+                  type="button"
+                  className="editable-exercise-option"
+                  onClick={() => handleSelectTriSet(ts._id)}
+                >
+                  {displayName(ts)}
+                </button>
+              </li>
+            ))}
+            {filteredTriSets.length === 0 && searchRaw && (
+              <li className="editable-exercise-option empty">No matches</li>
+            )}
+          </ul>
+        )}
+      </div>
       {saving && <span className="editable-saving">Saving…</span>}
       <div className="past-week-phase">
         <div className="past-week-phase-label">Phase 1</div>
         <ul className="past-week-list compact editable-list">
-          {phase1.map((ex, idx) => (
-            <li key={idx}><strong>{String.fromCharCode(65 + idx)}.</strong> {ex.name || ex.exerciseId?.name || '—'}</li>
-          ))}
+          {[0, 1, 2].map((idx) => {
+            const ex = phase1[idx] || {};
+            const value = ex.name || ex.exerciseId?.name || '';
+            return (
+              <li key={idx}>
+                <EditableExerciseSlot
+                  value={value}
+                  workoutId={workoutId}
+                  station={1}
+                  phase={1}
+                  slotIndex={idx}
+                  dayType={workout?.dayType}
+                  filter={workout?.filter}
+                  weekStartDate={weekStartDate}
+                  dayOfWeek={dayOfWeek}
+                  onUpdate={onUpdate}
+                  slotLabel={String.fromCharCode(65 + idx)}
+                />
+              </li>
+            );
+          })}
         </ul>
       </div>
       <div className="past-week-phase">
         <div className="past-week-phase-label">Phase 2</div>
         <ul className="past-week-list compact editable-list">
-          {phase2.map((ex, idx) => (
-            <li key={idx}><strong>{String.fromCharCode(65 + idx)}.</strong> {ex.name || ex.exerciseId?.name || '—'}</li>
-          ))}
+          {[0, 1, 2].map((idx) => {
+            const ex = phase2[idx] || {};
+            const value = ex.name || ex.exerciseId?.name || '';
+            return (
+              <li key={idx}>
+                <EditableExerciseSlot
+                  value={value}
+                  workoutId={workoutId}
+                  station={1}
+                  phase={2}
+                  slotIndex={idx}
+                  dayType={workout?.dayType}
+                  filter={workout?.filter}
+                  weekStartDate={weekStartDate}
+                  dayOfWeek={dayOfWeek}
+                  onUpdate={onUpdate}
+                  slotLabel={String.fromCharCode(65 + idx)}
+                />
+              </li>
+            );
+          })}
         </ul>
       </div>
     </div>

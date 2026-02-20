@@ -13,44 +13,66 @@ export default function EditableExerciseSlot({
   onUpdate,
   disabled = false,
   slotLabel,
-  canRegenerate = false,
   onWorkoutNotFound,
   weekStartDate,
-  dayOfWeek
+  dayOfWeek,
+  exerciseOptions = null // when set (e.g. Monday Phase 2 from tri-set), use this list instead of fetching
 }) {
   const [exercises, setExercises] = useState([]);
   const [saving, setSaving] = useState(false);
-  const [regenerating, setRegenerating] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [dropdownSearch, setDropdownSearch] = useState('');
   const [optimisticName, setOptimisticName] = useState(null); // show selected name immediately
   const dropdownRef = useRef(null);
+  const searchInputRef = useRef(null);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setDropdownOpen(false);
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setDropdownOpen(false);
+        setDropdownSearch('');
+        setEditing(false);
+      }
     };
     if (dropdownOpen) {
       document.addEventListener('mousedown', handleClickOutside);
+      searchInputRef.current?.focus();
       return () => document.removeEventListener('mousedown', handleClickOutside);
+    } else {
+      setDropdownSearch('');
     }
   }, [dropdownOpen]);
 
   useEffect(() => {
     if (!workoutId || disabled) return;
+    // When parent passes Phase 2 options (e.g. Monday tri-set Phase 2), use them as the dropdown list
+    if (Array.isArray(exerciseOptions) && exerciseOptions.length > 0) {
+      const list = exerciseOptions.map((ex) => ({
+        _id: ex._id || ex.exerciseId?._id,
+        name: ex.name || ex.exerciseId?.name || ''
+      })).filter((ex) => ex._id && ex.name);
+      setExercises(list);
+      return;
+    }
+    if (station === 1 && !dayType) {
+      setExercises([]);
+      return;
+    }
 
     const fetchExercises = async () => {
-      // Station-specific: Station 1 only shows Station 1, Station 2 only Station 2, etc.
-      // Station 1 ( Conditioning ): station + dayType + focus (Upper/Lower/Mixed)
-      // Station 2 & 3 ( Bag Work / Technique ): station + dayType only
+      // Station 1: request all exercises for this dayType (any focus — Upper, Lower, Mixed, Cardio, Abs, etc.) so users can assign any exercise to any day.
+      // Station 2 & 3: station + dayType only
       const params = new URLSearchParams({ station: String(station) });
       if (dayType) params.set('dayType', dayType);
-      if (station === 1 && filter) {
-        const focusList = filter === 'Upper Body' ? ['Upper'] : filter === 'Lower Body' ? ['Lower'] : ['Mixed', 'Full Body'];
-        focusList.forEach((f) => params.append('focus', f));
-      }
+      // Do not send focus for Station 1 — server returns all Station 1 exercises for this dayType
       const res = await api.get(`/exercises?${params}`).catch(() => ({ data: [] }));
       const raw = res.data || [];
-      const data = raw.filter((ex) => Number(ex.station) === Number(station));
+      const data = raw.filter((ex) => {
+        if (Number(ex.station) !== Number(station)) return false;
+        if (dayType && (ex.dayType || '').toString() !== (dayType || '').toString()) return false;
+        return true;
+      });
 
       // Deduplicate by normalized name
       const normalizeNameForDedupe = (name) => {
@@ -76,12 +98,13 @@ export default function EditableExerciseSlot({
     };
 
     fetchExercises();
-  }, [workoutId, station, dayType, filter, disabled]);
+  }, [workoutId, station, dayType, filter, disabled, exerciseOptions]);
 
   const save = async (exerciseId, exerciseName) => {
     const id = getWorkoutId(workoutId);
     if (!id && !(weekStartDate && dayOfWeek)) return Promise.reject();
     if (exerciseId === '' && !exerciseName) return Promise.reject();
+    if (!confirm('Are you sure you want to edit?')) return Promise.reject();
 
     setSaving(true);
     try {
@@ -127,6 +150,7 @@ export default function EditableExerciseSlot({
     const name = (ex.name || '').trim();
     setOptimisticName(name);
     setDropdownOpen(false);
+    setEditing(false);
     save(ex._id, null)
       .then(() => setOptimisticName(null)) // success: parent has new workout, clear so we use value from parent
       .catch(() => {}); // failure: keep showing selected exercise (don't revert)
@@ -134,40 +158,7 @@ export default function EditableExerciseSlot({
 
   const selectKeepCurrent = () => {
     setDropdownOpen(false);
-  };
-
-  const regenerateSlot = async () => {
-    // Never change Station 3 on Mon/Wed/Sat – always Non‑Stop Sparring
-    if (
-      station === 3 &&
-      (dayOfWeek === 'Monday' || dayOfWeek === 'Wednesday' || dayOfWeek === 'Saturday')
-    ) {
-      return;
-    }
-
-    // Pick a new random exercise from the CURRENT list, different from the one shown
-    if (!exercises.length) return;
-
-    const currentName = (optimisticName || value || '').trim();
-    const candidates = exercises.filter(
-      (ex) => (ex.name || '').trim() && (ex.name || '').trim() !== currentName
-    );
-    if (!candidates.length) return; // nothing different to choose
-
-    const next = candidates[Math.floor(Math.random() * candidates.length)];
-    const name = (next.name || '').trim();
-
-    setRegenerating(true);
-    setOptimisticName(name); // show immediately
-    try {
-      await save(next._id, null);
-      // on success, parent workout is updated; clear optimistic so we rely on parent value
-      setOptimisticName(null);
-    } catch {
-      // keep optimisticName so the user still sees the new choice even if save failed
-    } finally {
-      setRegenerating(false);
-    }
+    setEditing(false);
   };
 
   if (disabled) {
@@ -181,6 +172,39 @@ export default function EditableExerciseSlot({
   // Show selected exercise immediately (optimistic), then value from server when save completes
   const displayName = optimisticName ?? (currentInList?.name ?? (showCurrentAsOption ? currentName : ''));
   const triggerLabel = displayName || 'Select exercise…';
+
+  const searchRaw = (dropdownSearch || '').trim().toLowerCase().replace(/^[.\/]+/, '');
+  const filteredExercises = searchRaw
+    ? exercises.filter((ex) => (ex.name || '').toLowerCase().startsWith(searchRaw))
+    : exercises;
+
+  // Fixed view: show exercise name + small pen icon (no dropdown until pen is clicked)
+  const penIcon = (
+    <svg className="editable-pen-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+    </svg>
+  );
+  if (!editing) {
+    return (
+      <div className="editable-exercise-slot editable-exercise-slot-fixed">
+        {slotLabel && <span className="editable-slot-label">{slotLabel}.</span>}
+        <span className="editable-exercise-fixed-name">{displayName || '—'}</span>
+        <span className="editable-slot-actions">
+          <button
+            type="button"
+            className="editable-exercise-edit-btn"
+            onClick={() => setEditing(true)}
+            title="Edit exercise"
+            aria-label="Edit exercise"
+          >
+            {penIcon}
+          </button>
+          {saving && <span className="editable-saving">Saving…</span>}
+        </span>
+      </div>
+    );
+  }
 
   return (
     <div className="editable-exercise-slot" ref={dropdownRef}>
@@ -206,16 +230,29 @@ export default function EditableExerciseSlot({
           </div>
           {dropdownOpen && (
           <ul className="editable-exercise-dropdown" role="listbox">
+            <li className="editable-exercise-dropdown-search-wrap">
+              <input
+                ref={searchInputRef}
+                type="text"
+                className="editable-exercise-dropdown-search"
+                placeholder="Search exercises…"
+                value={dropdownSearch}
+                onChange={(e) => setDropdownSearch(e.target.value)}
+                onKeyDown={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
+                aria-label="Filter exercises"
+              />
+            </li>
             <li>
               <button
                 type="button"
                 className="editable-exercise-option empty"
-                onClick={() => { setDropdownOpen(false); }}
+                onClick={() => { setDropdownOpen(false); setEditing(false); }}
               >
                 Select exercise…
               </button>
             </li>
-            {showCurrentAsOption && (
+            {showCurrentAsOption && (currentName.toLowerCase().startsWith(searchRaw) || !searchRaw) && (
               <li>
                 <button
                   type="button"
@@ -226,7 +263,7 @@ export default function EditableExerciseSlot({
                 </button>
               </li>
             )}
-            {exercises.map((ex) => (
+            {filteredExercises.map((ex) => (
               <li key={ex._id}>
                 <button
                   type="button"
@@ -237,23 +274,16 @@ export default function EditableExerciseSlot({
                 </button>
               </li>
             ))}
+            {filteredExercises.length === 0 && searchRaw && (
+              <li className="editable-exercise-option empty">No matches</li>
+            )}
+            {filteredExercises.length === 0 && !searchRaw && station === 2 && (
+              <li className="editable-exercise-option empty">No Station 2 exercises for this day. Add them in Exercise Lab.</li>
+            )}
           </ul>
           )}
         </div>
-        {canRegenerate && (
-          <button
-            type="button"
-            className="editable-exercise-refresh"
-            onClick={regenerateSlot}
-            disabled={saving || regenerating}
-            title="Pick a new random exercise for this slot"
-            aria-label="Regenerate exercise"
-          >
-            {regenerating ? '…' : '↻'}
-          </button>
-        )}
         {saving && <span className="editable-saving">Saving…</span>}
-        {regenerating && !saving && <span className="editable-saving">Regenerating…</span>}
       </div>
     </div>
   );

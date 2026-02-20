@@ -18,7 +18,7 @@ const workoutSchema = new mongoose.Schema({
   },
   filter: {
     type: String,
-    enum: ['Upper Body', 'Lower Body', 'Mixed/Full Body'],
+    enum: ['Upper Body', 'Lower Body', 'Mixed/Full Body', 'Full Body', 'Cardio', 'Abs'],
     required: true
   },
   weekStartDate: {

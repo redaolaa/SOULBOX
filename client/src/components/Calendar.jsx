@@ -28,6 +28,7 @@ const Calendar = () => {
   const [workoutsByDate, setWorkoutsByDate] = useState({}); // for month view: dateStr -> workout
   const [loading, setLoading] = useState(false);
   const [selectedDay, setSelectedDay] = useState(null);
+  const [generateError, setGenerateError] = useState(null);
 
   const collapseNonstopStation3 = (station3) => {
     const getName = (ex) => String(ex?.name || ex?.exerciseId?.name || '').trim();
@@ -127,6 +128,7 @@ const Calendar = () => {
   };
 
   const generateWorkout = async (dayOfWeek) => {
+    setGenerateError(null);
     setLoading(true);
     try {
       const weekStartStr = weekStart.toISOString().split('T')[0];
@@ -137,7 +139,7 @@ const Calendar = () => {
       setWorkouts({ ...workouts, [dayOfWeek]: response.data });
       setSelectedDay(dayOfWeek);
     } catch (error) {
-      alert(error.response?.data?.error || 'Error generating workout');
+      setGenerateError(error.response?.data?.error || 'Error generating workout');
     } finally {
       setLoading(false);
     }
@@ -147,6 +149,7 @@ const Calendar = () => {
     if (!confirm('Generate workouts for the entire week? This will create workouts for all days.')) {
       return;
     }
+    setGenerateError(null);
     setLoading(true);
     try {
       const weekStartStr = weekStart.toISOString().split('T')[0];
@@ -159,7 +162,7 @@ const Calendar = () => {
       });
       setWorkouts(workoutsMap);
     } catch (error) {
-      alert(error.response?.data?.error || 'Error generating workouts');
+      setGenerateError(error.response?.data?.error || 'Error generating workouts');
     } finally {
       setLoading(false);
     }
@@ -170,6 +173,7 @@ const Calendar = () => {
     newWeekStart.setDate(newWeekStart.getDate() + (direction * 7));
     setWeekStart(newWeekStart);
     setSelectedDay(null);
+    setGenerateError(null);
   };
 
   const navigateMonth = (direction) => {
@@ -186,11 +190,11 @@ const Calendar = () => {
 
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Saturday'];
 
+  // Allow regenerate/generate only for the current or future program weeks (not past weeks)
   const isPastWeek = (() => {
-    const today = new Date();
-    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const weekStartStart = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate());
-    return weekStartStart < todayStart;
+    const todayWeekStart = getWeekStart(new Date());
+    const thisWeekStart = getWeekStart(weekStart);
+    return thisWeekStart < todayWeekStart;
   })();
 
   // Month grid: build array of weeks (each week = 7 days, empty cells for padding)
@@ -267,12 +271,16 @@ const Calendar = () => {
 
       {viewMode === 'week' && !isPastWeek && (
         <div className="week-actions">
-          <div className="week-actions-main">
-            <button onClick={generateWeek} className="btn-primary btn-generate-week" disabled={loading}>
-              {loading ? 'Generating...' : 'Generate Full Week'}
-            </button>
-            <span className="week-actions-hint">Or generate individual days below</span>
-          </div>
+          <button onClick={generateWeek} className="btn-primary btn-generate-week" disabled={loading}>
+            {loading ? 'Generating...' : 'Regenerate week'}
+          </button>
+        </div>
+      )}
+
+      {viewMode === 'week' && generateError && (
+        <div className="calendar-generate-error" role="alert">
+          <span>{generateError}</span>
+          <button type="button" className="calendar-generate-error-dismiss" onClick={() => setGenerateError(null)} aria-label="Dismiss">×</button>
         </div>
       )}
 
@@ -344,31 +352,22 @@ const Calendar = () => {
 
                   {selectedDay === day && (
                     <div className="day-expanded" onClick={(e) => e.stopPropagation()}>
-                      {!isPastWeek && (
-                        <button
-                          className="btn-small btn-primary btn-regenerate-expanded"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            generateWorkout(day);
-                          }}
-                          disabled={loading}
-                        >
-                          Regenerate this day
-                        </button>
-                      )}
                       <div className="past-week-station">
-                        <div className="past-week-station-title">Station 1 · Conditioning (Tri‑Sets)</div>
+                        <div className="past-week-station-title">
+                          Station 1 · {config.dayType}{(day === 'Monday' || day === 'Saturday') ? ' (Tri-Sets)' : ''}
+                        </div>
                         <div className="past-week-station-body">
-                          {day === 'Monday' && !isPastWeek && getWorkoutId(workout) ? (
+                          {day === 'Monday' && getWorkoutId(workout) ? (
                             <MondayStation1Selector
                               workoutId={getWorkoutId(workout)}
                               workout={workout}
                               weekStartDate={weekStartStr}
+                              weekNumber={getProgramWeekNumber(weekStart)}
                               dayOfWeek={day}
                               onUpdate={(updated) => setWorkouts((prev) => ({ ...prev, [day]: updated }))}
                               disabled={false}
                             />
-                          ) : day === 'Saturday' && !isPastWeek && getWorkoutId(workout) ? (
+                          ) : day === 'Saturday' && getWorkoutId(workout) ? (
                             <SaturdayStation1Selector
                               workoutId={getWorkoutId(workout)}
                               workout={workout}
@@ -382,11 +381,13 @@ const Calendar = () => {
                               <div className="past-week-phase">
                                 <div className="past-week-phase-label">Phase 1</div>
                                 <ul className="past-week-list compact editable-list">
-                                  {(workout.station1?.phase1 || []).map((ex, idx) => (
-                                    <li key={idx}>
-                                      {!isPastWeek && (getWorkoutId(workout) || weekStartStr) ? (
+                                  {[0, 1, 2].map((idx) => {
+                                    const ex = (workout.station1?.phase1 || [])[idx] || {};
+                                    const value = ex.name || ex.exerciseId?.name || '';
+                                    return (
+                                      <li key={idx}>
                                         <EditableExerciseSlot
-                                          value={ex.name || ex.exerciseId?.name}
+                                          value={value}
                                           workoutId={getWorkoutId(workout)}
                                           station={1}
                                           phase={1}
@@ -397,24 +398,23 @@ const Calendar = () => {
                                           dayOfWeek={day}
                                           onUpdate={(updated) => setWorkouts((prev) => ({ ...prev, [day]: updated }))}
                                           slotLabel={String.fromCharCode(65 + idx)}
-                                          canRegenerate={day !== 'Monday' && day !== 'Saturday'}
                                           onWorkoutNotFound={loadWorkouts}
                                         />
-                                      ) : (
-                                        <>{formatExerciseName(ex.name || ex.exerciseId?.name)}</>
-                                      )}
-                                    </li>
-                                  ))}
+                                      </li>
+                                    );
+                                  })}
                                 </ul>
                               </div>
                               <div className="past-week-phase">
                                 <div className="past-week-phase-label">Phase 2</div>
                                 <ul className="past-week-list compact editable-list">
-                                  {(workout.station1?.phase2 || []).map((ex, idx) => (
-                                    <li key={idx}>
-                                      {!isPastWeek && (getWorkoutId(workout) || weekStartStr) ? (
+                                  {[0, 1, 2].map((idx) => {
+                                    const ex = (workout.station1?.phase2 || [])[idx] || {};
+                                    const value = ex.name || ex.exerciseId?.name || '';
+                                    return (
+                                      <li key={idx}>
                                         <EditableExerciseSlot
-                                          value={ex.name || ex.exerciseId?.name}
+                                          value={value}
                                           workoutId={getWorkoutId(workout)}
                                           station={1}
                                           phase={2}
@@ -425,14 +425,11 @@ const Calendar = () => {
                                           dayOfWeek={day}
                                           onUpdate={(updated) => setWorkouts((prev) => ({ ...prev, [day]: updated }))}
                                           slotLabel={String.fromCharCode(65 + idx)}
-                                          canRegenerate={day !== 'Monday' && day !== 'Saturday'}
                                           onWorkoutNotFound={loadWorkouts}
                                         />
-                                      ) : (
-                                        <>{formatExerciseName(ex.name || ex.exerciseId?.name)}</>
-                                      )}
-                                    </li>
-                                  ))}
+                                      </li>
+                                    );
+                                  })}
                                 </ul>
                               </div>
                             </>
@@ -443,11 +440,13 @@ const Calendar = () => {
                       <div className="past-week-station">
                         <div className="past-week-station-title">Station 2 · Bag Work</div>
                         <ul className="past-week-list compact editable-list">
-                          {(workout.station2 || []).map((ex, idx) => (
-                            <li key={idx}>
-                              {!isPastWeek && (getWorkoutId(workout) || weekStartStr) ? (
+                          {[0, 1, 2].map((idx) => {
+                            const ex = (workout.station2 || [])[idx] || {};
+                            const value = ex.name || ex.exerciseId?.name || '';
+                            return (
+                              <li key={idx}>
                                 <EditableExerciseSlot
-                                  value={ex.name || ex.exerciseId?.name}
+                                  value={value}
                                   workoutId={getWorkoutId(workout)}
                                   station={2}
                                   slotIndex={idx}
@@ -457,17 +456,11 @@ const Calendar = () => {
                                   dayOfWeek={day}
                                   onUpdate={(updated) => setWorkouts((prev) => ({ ...prev, [day]: updated }))}
                                   slotLabel={String.fromCharCode(65 + idx)}
-                                  canRegenerate
                                   onWorkoutNotFound={loadWorkouts}
                                 />
-                              ) : (
-                                <>
-                                  <strong>{String.fromCharCode(65 + idx)}.</strong>{' '}
-                                  {formatExerciseName(ex.name || ex.exerciseId?.name)}
-                                </>
-                              )}
-                            </li>
-                          ))}
+                              </li>
+                            );
+                          })}
                         </ul>
                       </div>
 
@@ -484,11 +477,13 @@ const Calendar = () => {
                                 </li>
                               );
                             }
-                            return (workout.station3 || []).map((ex, idx) => (
-                              <li key={idx}>
-                                {!isPastWeek && (getWorkoutId(workout) || weekStartStr) ? (
+                            return [0, 1, 2].map((idx) => {
+                              const ex = (workout.station3 || [])[idx] || {};
+                              const value = ex.name || ex.exerciseId?.name || '';
+                              return (
+                                <li key={idx}>
                                   <EditableExerciseSlot
-                                    value={ex.name || ex.exerciseId?.name}
+                                    value={value}
                                     workoutId={getWorkoutId(workout)}
                                     station={3}
                                     slotIndex={idx}
@@ -498,17 +493,11 @@ const Calendar = () => {
                                     dayOfWeek={day}
                                     onUpdate={(updated) => setWorkouts((prev) => ({ ...prev, [day]: updated }))}
                                     slotLabel={String.fromCharCode(65 + idx)}
-                                    canRegenerate={day !== 'Monday' && day !== 'Wednesday' && day !== 'Saturday'}
                                     onWorkoutNotFound={loadWorkouts}
                                   />
-                                ) : (
-                                  <>
-                                    <strong>{String.fromCharCode(65 + idx)}.</strong>{' '}
-                                    {formatExerciseName(ex.name || ex.exerciseId?.name)}
-                                  </>
-                                )}
-                              </li>
-                            ));
+                                </li>
+                              );
+                            });
                           })()}
                         </ul>
                       </div>

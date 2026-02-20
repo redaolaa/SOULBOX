@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-// In browser dev: use full URL so requests always hit the backend (avoids proxy/origin issues)
-const API_URL = import.meta.env.VITE_API_URL ?? (typeof window !== 'undefined' ? 'http://localhost:3000/api' : 'http://localhost:3000/api');
+// Use relative /api so in dev all traffic goes through Vite (port 5173) and is proxied to the backend
+const API_URL = import.meta.env.VITE_API_URL ?? '/api';
 
 const api = axios.create({
   baseURL: API_URL,

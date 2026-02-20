@@ -16,7 +16,8 @@ const triSetSchema = new mongoose.Schema({
   },
   focus: {
     type: String,
-    enum: ['Mixed', 'Lower'],
+    // Mixed/Lower used for Technique tri-sets; allow Cardio/Abs so validation never blocks Exercise Lab
+    enum: ['Mixed', 'Lower', 'Full Body', 'Cardio', 'Abs'],
     required: true
   },
   name: {

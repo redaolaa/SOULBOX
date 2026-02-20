@@ -10,10 +10,11 @@ const exerciseSchema = new mongoose.Schema({
     required: true,
     enum: [1, 2, 3]
   },
+  // Station 1 only. All allowed values (null for Station 2/3).
   focus: {
     type: String,
-    enum: ['Upper', 'Lower', 'Mixed', 'Full Body'],
-    required: true
+    enum: ['Upper', 'Lower', 'Mixed', 'Full Body', 'Cardio', 'Abs', null],
+    default: null
   },
   dayType: {
     type: String,

@@ -65,8 +65,17 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  const changePassword = async (currentPassword, newPassword) => {
+    try {
+      await api.patch('/auth/password', { currentPassword, newPassword });
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error.response?.data?.error || 'Failed to change password' };
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, register, logout, changePassword, loading }}>
       {children}
     </AuthContext.Provider>
   );
