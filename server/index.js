@@ -1238,11 +1238,16 @@ app.use('/api', (req, res) => {
 
 // Production: serve React build and SPA fallback
 if (process.env.NODE_ENV === 'production') {
+  const fs = require('fs');
   const clientDist = path.join(__dirname, '../client/dist');
-  app.use(express.static(clientDist));
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(clientDist, 'index.html'));
-  });
+  if (fs.existsSync(clientDist)) {
+    app.use(express.static(clientDist));
+    app.get('/(.*)', (req, res) => {
+      res.sendFile(path.join(clientDist, 'index.html'));
+    });
+  } else {
+    console.warn('Production: client/dist not found. Serve client separately or fix build.');
+  }
 }
 
 // Start server
