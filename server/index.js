@@ -16,7 +16,10 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-producti
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.static('public'));
+// Only serve server/public in development; in production we serve the React app from client/dist
+if (process.env.NODE_ENV !== 'production') {
+  app.use(express.static('public'));
+}
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/soulbox')
@@ -1241,8 +1244,14 @@ if (process.env.NODE_ENV === 'production') {
   const fs = require('fs');
   const clientDist = path.join(__dirname, '../client/dist');
   if (fs.existsSync(clientDist)) {
-    app.use(express.static(clientDist));
+    // Serve static files first (JS, CSS, images). index: false so we don't serve index for /
+    app.use(express.static(clientDist, { index: false }));
+    // SPA fallback: serve index.html only for page-like paths (not /api, not /assets/xxx.js)
     app.get('/{*path}', (req, res) => {
+      const p = req.path;
+      if (p.startsWith('/api') || p.startsWith('/assets') || /\.[a-z0-9]+$/i.test(p)) {
+        return res.status(404).send('Not found');
+      }
       res.sendFile(path.join(clientDist, 'index.html'));
     });
   } else {
