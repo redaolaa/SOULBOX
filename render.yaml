@@ -1,0 +1,9 @@
+# Render Blueprint - SOULBOX (optional; you can also set build/start in Dashboard)
+# Set NODE_ENV, MONGODB_URI, JWT_SECRET in Render Dashboard → Environment
+services:
+  - type: web
+    name: soulbox
+    runtime: node
+    plan: free
+    buildCommand: npm run install:all && npm run build
+    startCommand: node server/index.js

@@ -4,6 +4,7 @@ const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
+const BlockedDay = require('./models/BlockedDay');
 const Exercise = require('./models/Exercise');
 const TriSet = require('./models/TriSet');
 const User = require('./models/User');
@@ -873,6 +874,58 @@ app.get('/api/workouts', authenticateToken, async (req, res) => {
       .populate('station1.phase1.exerciseId station1.phase2.exerciseId station2.exerciseId station3.exerciseId')
       .sort({ weekStartDate: -1, dayOfWeek: 1 });
     res.json(workouts);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get blocked days for a week
+app.get('/api/blocked-days/week', authenticateToken, async (req, res) => {
+  try {
+    const { weekStartDate } = req.query;
+    if (!weekStartDate) return res.status(400).json({ error: 'weekStartDate required' });
+    const start = new Date(weekStartDate);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 7);
+    const list = await BlockedDay.find({
+      userId: req.user.userId,
+      weekStartDate: { $gte: start, $lt: end }
+    }).lean();
+    res.json(list.map((b) => b.dayOfWeek));
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Block a day (rest day)
+app.post('/api/blocked-days', authenticateToken, async (req, res) => {
+  try {
+    const { weekStartDate, dayOfWeek } = req.body;
+    if (!weekStartDate || !dayOfWeek) return res.status(400).json({ error: 'weekStartDate and dayOfWeek required' });
+    const validDays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Saturday'];
+    if (!validDays.includes(dayOfWeek)) return res.status(400).json({ error: 'Invalid dayOfWeek' });
+    const doc = await BlockedDay.findOneAndUpdate(
+      { userId: req.user.userId, weekStartDate: new Date(weekStartDate), dayOfWeek },
+      { $setOnInsert: { userId: req.user.userId, weekStartDate: new Date(weekStartDate), dayOfWeek } },
+      { upsert: true, new: true }
+    );
+    res.json({ dayOfWeek: doc.dayOfWeek });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Unblock a day
+app.delete('/api/blocked-days', authenticateToken, async (req, res) => {
+  try {
+    const { weekStartDate, dayOfWeek } = req.query;
+    if (!weekStartDate || !dayOfWeek) return res.status(400).json({ error: 'weekStartDate and dayOfWeek required' });
+    await BlockedDay.deleteOne({
+      userId: req.user.userId,
+      weekStartDate: new Date(weekStartDate),
+      dayOfWeek
+    });
+    res.json({ ok: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

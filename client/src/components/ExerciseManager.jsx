@@ -55,6 +55,12 @@ const ExerciseManager = () => {
     loadExercises();
   }, []);
 
+  useEffect(() => {
+    const onExercisesUpdated = () => loadExercises();
+    window.addEventListener('exercises-updated', onExercisesUpdated);
+    return () => window.removeEventListener('exercises-updated', onExercisesUpdated);
+  }, []);
+
   const loadTriSets = async () => {
     try {
       const res = await api.get('/trisets');

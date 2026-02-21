@@ -507,6 +507,86 @@
   margin-top: 0.5rem;
 }
 
+.rest-day-block {
+  margin-top: 0.5rem;
+  padding: 0.75rem;
+  background: var(--hover-bg);
+  border-radius: 8px;
+  border: 1px dashed var(--border);
+}
+
+.rest-day-label {
+  display: block;
+  font-weight: 600;
+  color: var(--text-light);
+  margin-bottom: 0.5rem;
+}
+
+.day-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.workout-preview-header .btn-block-day,
+.day-actions-row .btn-block-day {
+  margin-left: 0;
+}
+
+/* Confirm modal: Edit existing vs Add new exercise (rendered in portal) */
+.editable-exercise-confirm-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+}
+
+.editable-exercise-confirm-modal {
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 1.5rem;
+  max-width: 360px;
+  width: 90%;
+  border: 1px solid var(--border);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.editable-exercise-confirm-modal p {
+  margin: 0 0 0.5rem;
+  color: var(--text);
+}
+
+.editable-exercise-confirm-name {
+  font-weight: 600;
+  color: var(--primary-color);
+  margin-bottom: 1rem !important;
+}
+
+.editable-exercise-confirm-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.editable-exercise-confirm-actions .btn-primary,
+.editable-exercise-confirm-actions .btn-secondary {
+  width: 100%;
+  min-height: 44px;
+}
+
+.editable-exercise-option.use-typed-name {
+  font-weight: 500;
+  color: var(--primary-color);
+}
+
 .week-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
@@ -515,6 +595,7 @@
 }
 
 .day-card {
+  position: relative;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -523,6 +604,48 @@
   transition: all 0.3s;
   overflow: visible;
   min-width: 0;
+}
+
+.day-card-corner-x {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-light);
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s, background 0.2s;
+  z-index: 2;
+}
+.day-card-corner-x:hover {
+  color: var(--text);
+  background: var(--hover-bg);
+}
+.day-card-corner-x:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.day-card-blocked .day-card-content {
+  opacity: 0.5;
+  filter: blur(3px);
+  pointer-events: none;
+  user-select: none;
+}
+.day-card-blocked {
+  pointer-events: none;
+}
+.day-card-blocked .day-card-corner-x {
+  pointer-events: auto;
 }
 
 .day-card:hover {
@@ -895,15 +1018,15 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.5rem;
-  height: 1.5rem;
+  width: 1.75rem;
+  height: 1.75rem;
   padding: 0;
   border: none;
   border-radius: 4px;
   background: transparent;
-  color: var(--text-light);
+  color: var(--text);
   cursor: pointer;
-  opacity: 0.7;
+  opacity: 0.85;
 }
 
 .editable-exercise-edit-btn:hover {
@@ -995,7 +1118,7 @@
   border: 1px solid var(--border);
   border-radius: 6px;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
-  z-index: 200;
+  z-index: 1500;
   min-width: 220px;
   max-width: 400px;
   max-height: 300px;

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import api from '../utils/api';
 import { getWorkoutId } from '../utils/workoutId';
 
@@ -16,14 +17,16 @@ export default function EditableExerciseSlot({
   onWorkoutNotFound,
   weekStartDate,
   dayOfWeek,
-  exerciseOptions = null // when set (e.g. Monday Phase 2 from tri-set), use this list instead of fetching
+  exerciseOptions = null,
+  currentExerciseId = null // when slot has an exercise, pass its _id so we can offer "edit" vs "add new"
 }) {
   const [exercises, setExercises] = useState([]);
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [dropdownSearch, setDropdownSearch] = useState('');
-  const [optimisticName, setOptimisticName] = useState(null); // show selected name immediately
+  const [optimisticName, setOptimisticName] = useState(null);
+  const [confirmModal, setConfirmModal] = useState(null); // { typedName } for "Edit or add new?"
   const dropdownRef = useRef(null);
   const searchInputRef = useRef(null);
 
@@ -36,9 +39,19 @@ export default function EditableExerciseSlot({
       }
     };
     if (dropdownOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      searchInputRef.current?.focus();
-      return () => document.removeEventListener('mousedown', handleClickOutside);
+      // Delay listener so the click that opened the dropdown isn't treated as outside
+      const t = setTimeout(() => {
+        document.addEventListener('mousedown', handleClickOutside);
+      }, 0);
+      const el = searchInputRef.current;
+      if (el) {
+        el.focus();
+        el.setSelectionRange(el.value.length, el.value.length);
+      }
+      return () => {
+        clearTimeout(t);
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
     } else {
       setDropdownSearch('');
     }
@@ -104,7 +117,6 @@ export default function EditableExerciseSlot({
     const id = getWorkoutId(workoutId);
     if (!id && !(weekStartDate && dayOfWeek)) return Promise.reject();
     if (exerciseId === '' && !exerciseName) return Promise.reject();
-    if (!confirm('Are you sure you want to edit?')) return Promise.reject();
 
     setSaving(true);
     try {
@@ -161,6 +173,62 @@ export default function EditableExerciseSlot({
     setEditing(false);
   };
 
+  const notifyExerciseLab = () => {
+    try {
+      window.dispatchEvent(new CustomEvent('exercises-updated'));
+    } catch (_) {}
+  };
+
+  const commitTypedName = (typedName) => {
+    const name = (typedName || '').trim();
+    if (!name) return;
+    const currentName = (value || '').trim();
+    if (name.toLowerCase() === currentName.toLowerCase()) {
+      setDropdownOpen(false);
+      setEditing(false);
+      return;
+    }
+    // If typed name matches an exercise in the list, switch to it (same as clicking it)
+    const match = exercises.find((ex) => (ex.name || '').trim().toLowerCase() === name.toLowerCase());
+    if (match) {
+      selectExercise(match);
+      return;
+    }
+    // Otherwise: new name → show confirmation (edit existing exercise vs add new)
+    setConfirmModal({ typedName: name });
+  };
+
+  const handleConfirmEdit = async () => {
+    if (!confirmModal?.typedName || !currentExerciseId) return;
+    const name = confirmModal.typedName.trim();
+    setConfirmModal(null);
+    setDropdownOpen(false);
+    setEditing(false);
+    setSaving(true);
+    setOptimisticName(name);
+    try {
+      await api.put(`/exercises/${currentExerciseId}`, { name });
+      await save(currentExerciseId, null);
+      setOptimisticName(null);
+      notifyExerciseLab();
+    } catch (err) {
+      setOptimisticName(null);
+      if (import.meta.env?.DEV) console.error('Edit exercise failed', err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleConfirmAddNew = async () => {
+    if (!confirmModal?.typedName) return;
+    const name = confirmModal.typedName.trim();
+    setConfirmModal(null);
+    setDropdownOpen(false);
+    setEditing(false);
+    setOptimisticName(name);
+    save(null, name).then(() => { setOptimisticName(null); notifyExerciseLab(); }).catch(() => setOptimisticName(null));
+  };
+
   if (disabled) {
     return <span className="editable-exercise-value">{value || '—'}</span>;
   }
@@ -194,7 +262,11 @@ export default function EditableExerciseSlot({
           <button
             type="button"
             className="editable-exercise-edit-btn"
-            onClick={() => setEditing(true)}
+            onClick={() => {
+              setDropdownSearch((value || '').trim());
+              setDropdownOpen(true);
+              setEditing(true);
+            }}
             title="Edit exercise"
             aria-label="Edit exercise"
           >
@@ -213,11 +285,18 @@ export default function EditableExerciseSlot({
         <div className="editable-exercise-dropdown-wrap" style={{ position: 'relative', flex: 1, minWidth: 0 }}>
           <div
             className={`editable-exercise-select editable-exercise-select-trigger ${dropdownOpen ? 'open' : ''}`}
-            onClick={() => !saving && setDropdownOpen((v) => !v)}
+            onClick={() => {
+              if (saving) return;
+              if (!dropdownOpen) setDropdownSearch((value || '').trim());
+              setDropdownOpen((v) => !v);
+            }}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
-                if (!saving) setDropdownOpen((v) => !v);
+                if (!saving) {
+                  if (!dropdownOpen) setDropdownSearch((value || '').trim());
+                  setDropdownOpen((v) => !v);
+                }
               }
             }}
             role="button"
@@ -235,12 +314,18 @@ export default function EditableExerciseSlot({
                 ref={searchInputRef}
                 type="text"
                 className="editable-exercise-dropdown-search"
-                placeholder="Search exercises…"
+                placeholder="Search or type a name…"
                 value={dropdownSearch}
                 onChange={(e) => setDropdownSearch(e.target.value)}
-                onKeyDown={(e) => e.stopPropagation()}
+                onKeyDown={(e) => {
+                  e.stopPropagation();
+                  if (e.key === 'Enter') {
+                    const name = (dropdownSearch || '').trim();
+                    if (name) commitTypedName(name);
+                  }
+                }}
                 onClick={(e) => e.stopPropagation()}
-                aria-label="Filter exercises"
+                aria-label="Filter or type exercise name"
               />
             </li>
             <li>
@@ -260,6 +345,17 @@ export default function EditableExerciseSlot({
                   onClick={selectKeepCurrent}
                 >
                   {currentName} (keep)
+                </button>
+              </li>
+            )}
+            {searchRaw.trim() && (
+              <li>
+                <button
+                  type="button"
+                  className="editable-exercise-option use-typed-name"
+                  onClick={() => commitTypedName(dropdownSearch.trim())}
+                >
+                  Use &quot;{searchRaw.trim()}&quot; → Edit or add new
                 </button>
               </li>
             )}
@@ -285,6 +381,50 @@ export default function EditableExerciseSlot({
         </div>
         {saving && <span className="editable-saving">Saving…</span>}
       </div>
+
+      {confirmModal && createPortal(
+        <div
+          className="editable-exercise-confirm-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="editable-exercise-confirm-title"
+          onClick={(e) => e.target === e.currentTarget && setConfirmModal(null)}
+        >
+          <div className="editable-exercise-confirm-modal" onClick={(e) => e.stopPropagation()}>
+            {currentExerciseId ? (
+              <>
+                <p id="editable-exercise-confirm-title">Do you want to edit this exercise or add a new exercise?</p>
+                <p className="editable-exercise-confirm-name">&quot;{confirmModal.typedName}&quot;</p>
+                <div className="editable-exercise-confirm-actions">
+                  <button type="button" className="btn-secondary" onClick={handleConfirmEdit}>
+                    Edit existing
+                  </button>
+                  <button type="button" className="btn-primary" onClick={handleConfirmAddNew}>
+                    Add new exercise
+                  </button>
+                  <button type="button" className="btn-secondary" onClick={() => setConfirmModal(null)}>
+                    Cancel
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p id="editable-exercise-confirm-title">Add new exercise?</p>
+                <p className="editable-exercise-confirm-name">&quot;{confirmModal.typedName}&quot;</p>
+                <div className="editable-exercise-confirm-actions">
+                  <button type="button" className="btn-primary" onClick={handleConfirmAddNew}>
+                    Add
+                  </button>
+                  <button type="button" className="btn-secondary" onClick={() => setConfirmModal(null)}>
+                    Cancel
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

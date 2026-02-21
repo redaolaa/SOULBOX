@@ -170,6 +170,7 @@ export default function SaturdayStation1Selector({ workoutId, workout, weekStart
           {[0, 1, 2].map((idx) => {
             const ex = phase1[idx] || {};
             const value = ex.name || ex.exerciseId?.name || '';
+            const currentExerciseId = ex?.exerciseId?._id ?? ex?.exerciseId ?? undefined;
             return (
               <li key={idx}>
                 <EditableExerciseSlot
@@ -184,6 +185,7 @@ export default function SaturdayStation1Selector({ workoutId, workout, weekStart
                   dayOfWeek={dayOfWeek}
                   onUpdate={onUpdate}
                   slotLabel={String.fromCharCode(65 + idx)}
+                  currentExerciseId={currentExerciseId}
                 />
               </li>
             );
@@ -196,6 +198,7 @@ export default function SaturdayStation1Selector({ workoutId, workout, weekStart
           {[0, 1, 2].map((idx) => {
             const ex = phase2[idx] || {};
             const value = ex.name || ex.exerciseId?.name || '';
+            const currentExerciseId = ex?.exerciseId?._id ?? ex?.exerciseId ?? undefined;
             return (
               <li key={idx}>
                 <EditableExerciseSlot
@@ -210,6 +213,7 @@ export default function SaturdayStation1Selector({ workoutId, workout, weekStart
                   dayOfWeek={dayOfWeek}
                   onUpdate={onUpdate}
                   slotLabel={String.fromCharCode(65 + idx)}
+                  currentExerciseId={currentExerciseId}
                 />
               </li>
             );

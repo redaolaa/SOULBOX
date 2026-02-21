@@ -26,6 +26,7 @@ const Calendar = () => {
   });
   const [workouts, setWorkouts] = useState({});
   const [workoutsByDate, setWorkoutsByDate] = useState({}); // for month view: dateStr -> workout
+  const [blockedDays, setBlockedDays] = useState([]); // dayOfWeek strings for current week
   const [loading, setLoading] = useState(false);
   const [selectedDay, setSelectedDay] = useState(null);
   const [generateError, setGenerateError] = useState(null);
@@ -114,12 +115,16 @@ const Calendar = () => {
     setLoading(true);
     try {
       const weekStartStr = weekStart.toISOString().split('T')[0];
-      const response = await api.get(`/workouts/week?weekStartDate=${weekStartStr}`);
+      const [workoutsRes, blockedRes] = await Promise.all([
+        api.get(`/workouts/week?weekStartDate=${weekStartStr}`),
+        api.get(`/blocked-days/week?weekStartDate=${weekStartStr}`)
+      ]);
       const workoutsMap = {};
-      response.data.forEach(workout => {
+      workoutsRes.data.forEach(workout => {
         workoutsMap[workout.dayOfWeek] = workout;
       });
       setWorkouts(workoutsMap);
+      setBlockedDays(blockedRes.data || []);
     } catch (error) {
       console.error('Error loading workouts:', error);
     } finally {
@@ -186,6 +191,24 @@ const Calendar = () => {
     setWeekStart(getWeekStart(new Date(date)));
     setViewMode('week');
     setSelectedDay(null);
+  };
+
+  const weekStartStr = weekStart.toISOString().split('T')[0];
+  const blockDay = async (dayOfWeek) => {
+    try {
+      await api.post('/blocked-days', { weekStartDate: weekStartStr, dayOfWeek });
+      setBlockedDays((prev) => (prev.includes(dayOfWeek) ? prev : [...prev, dayOfWeek]));
+    } catch (e) {
+      console.error('Failed to block day:', e);
+    }
+  };
+  const unblockDay = async (dayOfWeek) => {
+    try {
+      await api.delete(`/blocked-days?weekStartDate=${weekStartStr}&dayOfWeek=${dayOfWeek}`);
+      setBlockedDays((prev) => prev.filter((d) => d !== dayOfWeek));
+    } catch (e) {
+      console.error('Failed to unblock day:', e);
+    }
   };
 
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Saturday'];
@@ -324,15 +347,39 @@ const Calendar = () => {
           return (
             <div
               key={day}
-              className={`day-card ${selectedDay === day ? 'selected' : ''} ${workout ? 'has-workout' : ''}`}
-              onClick={() => setSelectedDay(selectedDay === day ? null : day)}
+              className={`day-card ${selectedDay === day ? 'selected' : ''} ${workout ? 'has-workout' : ''} ${blockedDays.includes(day) ? 'day-card-blocked' : ''}`}
+              onClick={() => !blockedDays.includes(day) && setSelectedDay(selectedDay === day ? null : day)}
             >
-              <h3>{day}</h3>
-              <div className="day-info">
-                <span className="day-type">{config.dayType}</span>
-                <span className="day-filter">{config.filter}</span>
-              </div>
-              {workout ? (
+              {!isPastWeek && (
+                <button
+                  type="button"
+                  className="day-card-corner-x"
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (loading) return;
+                    if (blockedDays.includes(day)) unblockDay(day);
+                    else blockDay(day);
+                  }}
+                  disabled={loading}
+                  title={blockedDays.includes(day) ? 'Unblock day' : 'Block day (rest)'}
+                  aria-label={blockedDays.includes(day) ? 'Unblock day' : 'Block day'}
+                >
+                  ×
+                </button>
+              )}
+              <div className="day-card-content">
+                <h3>{day}</h3>
+                <div className="day-info">
+                  <span className="day-type">{config.dayType}</span>
+                  <span className="day-filter">{config.filter}</span>
+                </div>
+                {blockedDays.includes(day) ? (
+                <div className="workout-preview rest-day-block" onClick={(e) => e.stopPropagation()}>
+                  <div className="rest-day-label">Rest day</div>
+                </div>
+              ) : workout ? (
                 <div className="workout-preview">
                   <div className="workout-preview-header">
                     <span className="workout-chip">Saved workout</span>
@@ -384,6 +431,7 @@ const Calendar = () => {
                                   {[0, 1, 2].map((idx) => {
                                     const ex = (workout.station1?.phase1 || [])[idx] || {};
                                     const value = ex.name || ex.exerciseId?.name || '';
+                                    const currentExerciseId = ex?.exerciseId?._id ?? ex?.exerciseId ?? undefined;
                                     return (
                                       <li key={idx}>
                                         <EditableExerciseSlot
@@ -399,6 +447,7 @@ const Calendar = () => {
                                           onUpdate={(updated) => setWorkouts((prev) => ({ ...prev, [day]: updated }))}
                                           slotLabel={String.fromCharCode(65 + idx)}
                                           onWorkoutNotFound={loadWorkouts}
+                                          currentExerciseId={currentExerciseId}
                                         />
                                       </li>
                                     );
@@ -411,6 +460,7 @@ const Calendar = () => {
                                   {[0, 1, 2].map((idx) => {
                                     const ex = (workout.station1?.phase2 || [])[idx] || {};
                                     const value = ex.name || ex.exerciseId?.name || '';
+                                    const currentExerciseId = ex?.exerciseId?._id ?? ex?.exerciseId ?? undefined;
                                     return (
                                       <li key={idx}>
                                         <EditableExerciseSlot
@@ -426,6 +476,7 @@ const Calendar = () => {
                                           onUpdate={(updated) => setWorkouts((prev) => ({ ...prev, [day]: updated }))}
                                           slotLabel={String.fromCharCode(65 + idx)}
                                           onWorkoutNotFound={loadWorkouts}
+                                          currentExerciseId={currentExerciseId}
                                         />
                                       </li>
                                     );
@@ -443,6 +494,7 @@ const Calendar = () => {
                           {[0, 1, 2].map((idx) => {
                             const ex = (workout.station2 || [])[idx] || {};
                             const value = ex.name || ex.exerciseId?.name || '';
+                            const currentExerciseId = ex?.exerciseId?._id ?? ex?.exerciseId ?? undefined;
                             return (
                               <li key={idx}>
                                 <EditableExerciseSlot
@@ -457,6 +509,7 @@ const Calendar = () => {
                                   onUpdate={(updated) => setWorkouts((prev) => ({ ...prev, [day]: updated }))}
                                   slotLabel={String.fromCharCode(65 + idx)}
                                   onWorkoutNotFound={loadWorkouts}
+                                  currentExerciseId={currentExerciseId}
                                 />
                               </li>
                             );
@@ -480,6 +533,7 @@ const Calendar = () => {
                             return [0, 1, 2].map((idx) => {
                               const ex = (workout.station3 || [])[idx] || {};
                               const value = ex.name || ex.exerciseId?.name || '';
+                              const currentExerciseId = ex?.exerciseId?._id ?? ex?.exerciseId ?? undefined;
                               return (
                                 <li key={idx}>
                                   <EditableExerciseSlot
@@ -494,6 +548,7 @@ const Calendar = () => {
                                     onUpdate={(updated) => setWorkouts((prev) => ({ ...prev, [day]: updated }))}
                                     slotLabel={String.fromCharCode(65 + idx)}
                                     onWorkoutNotFound={loadWorkouts}
+                                    currentExerciseId={currentExerciseId}
                                   />
                                 </li>
                               );
@@ -506,18 +561,18 @@ const Calendar = () => {
                 </div>
               ) : (
                 !isPastWeek && (
-                  <button
-                    className="btn-small btn-primary btn-generate-day"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      generateWorkout(day);
-                    }}
-                    disabled={loading}
-                  >
-                    Generate
-                  </button>
+                  <div className="day-actions-row" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      className="btn-small btn-primary btn-generate-day"
+                      onClick={() => generateWorkout(day)}
+                      disabled={loading}
+                    >
+                      Generate
+                    </button>
+                  </div>
                 )
               )}
+              </div>
             </div>
           );
         })}
