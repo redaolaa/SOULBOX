@@ -246,14 +246,6 @@ export default function EditableExerciseSlot({
     ? exercises.filter((ex) => (ex.name || '').toLowerCase().startsWith(searchRaw))
     : exercises;
 
-  // Threshold for "recent" use: 4 weeks before this week (or today if weekStartDate is not provided)
-  const recentCutoff = (() => {
-    const base = weekStartDate ? new Date(weekStartDate) : new Date();
-    const d = new Date(base);
-    d.setDate(d.getDate() - 28);
-    return d;
-  })();
-
   // Fixed view: show exercise name + small pen icon (no dropdown until pen is clicked)
   const penIcon = (
     <svg className="editable-pen-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -367,25 +359,17 @@ export default function EditableExerciseSlot({
                 </button>
               </li>
             )}
-            {filteredExercises.map((ex) => {
-              const isRecent = ex.lastUsed ? new Date(ex.lastUsed) >= recentCutoff : false;
-              return (
-                <li key={ex._id}>
-                  <button
-                    type="button"
-                    className={`editable-exercise-option${isRecent ? ' editable-exercise-option-recent' : ''}`}
-                    onClick={() => selectExercise(ex)}
-                  >
-                    <span>{ex.name}</span>
-                    {isRecent && (
-                      <span className="editable-exercise-option-recent-tag">
-                        (used in last 4 weeks)
-                      </span>
-                    )}
-                  </button>
-                </li>
-              );
-            })}
+            {filteredExercises.map((ex) => (
+              <li key={ex._id}>
+                <button
+                  type="button"
+                  className="editable-exercise-option"
+                  onClick={() => selectExercise(ex)}
+                >
+                  {ex.name}
+                </button>
+              </li>
+            ))}
             {filteredExercises.length === 0 && searchRaw && (
               <li className="editable-exercise-option empty">No matches</li>
             )}

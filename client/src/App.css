@@ -1143,17 +1143,6 @@
   background: none;
   font-family: inherit;
 }
-
-.editable-exercise-option-recent {
-  color: #ff5555;
-}
-
-.editable-exercise-option-recent-tag {
-  display: inline-block;
-  margin-left: 0.25rem;
-  font-size: 0.8rem;
-  color: #ff9999;
-}
 .editable-exercise-dropdown li {
   list-style: none;
 }
