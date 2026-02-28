@@ -27,6 +27,7 @@ export default function EditableExerciseSlot({
   const [dropdownSearch, setDropdownSearch] = useState('');
   const [optimisticName, setOptimisticName] = useState(null);
   const [confirmModal, setConfirmModal] = useState(null); // { typedName } for "Edit or add new?"
+  const [dropdownOpenCount, setDropdownOpenCount] = useState(0); // force search input to remount empty each open
   const dropdownRef = useRef(null);
   const searchInputRef = useRef(null);
 
@@ -39,6 +40,8 @@ export default function EditableExerciseSlot({
       }
     };
     if (dropdownOpen) {
+      setDropdownSearch('');
+      setDropdownOpenCount((c) => c + 1); // remount search input so it's always empty
       // Delay listener so the click that opened the dropdown isn't treated as outside
       const t = setTimeout(() => {
         document.addEventListener('mousedown', handleClickOutside);
@@ -46,7 +49,6 @@ export default function EditableExerciseSlot({
       const el = searchInputRef.current;
       if (el) {
         el.focus();
-        el.setSelectionRange(el.value.length, el.value.length);
       }
       return () => {
         clearTimeout(t);
@@ -263,7 +265,7 @@ export default function EditableExerciseSlot({
             type="button"
             className="editable-exercise-edit-btn"
             onClick={() => {
-              setDropdownSearch((value || '').trim());
+              setDropdownSearch('');
               setDropdownOpen(true);
               setEditing(true);
             }}
@@ -287,14 +289,14 @@ export default function EditableExerciseSlot({
             className={`editable-exercise-select editable-exercise-select-trigger ${dropdownOpen ? 'open' : ''}`}
             onClick={() => {
               if (saving) return;
-              if (!dropdownOpen) setDropdownSearch((value || '').trim());
+              if (!dropdownOpen) setDropdownSearch('');
               setDropdownOpen((v) => !v);
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
                 if (!saving) {
-                  if (!dropdownOpen) setDropdownSearch((value || '').trim());
+                  if (!dropdownOpen) setDropdownSearch('');
                   setDropdownOpen((v) => !v);
                 }
               }
@@ -311,11 +313,12 @@ export default function EditableExerciseSlot({
           <ul className="editable-exercise-dropdown" role="listbox">
             <li className="editable-exercise-dropdown-search-wrap">
               <input
+                key={`search-${dropdownOpenCount}`}
                 ref={searchInputRef}
                 type="text"
                 className="editable-exercise-dropdown-search"
                 placeholder="Search or type a name…"
-                value={dropdownSearch}
+                value={dropdownOpenCount > 0 ? dropdownSearch : ''}
                 onChange={(e) => setDropdownSearch(e.target.value)}
                 onKeyDown={(e) => {
                   e.stopPropagation();
