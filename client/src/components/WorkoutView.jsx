@@ -40,14 +40,16 @@ const WorkoutView = ({ workout, onClose, onRegenerate }) => {
                 ))}
               </ol>
             </div>
-            <div className="phase">
-              <h4>Phase 2:</h4>
-              <ol>
-                {workout.station1.phase2.map((ex, idx) => (
-                  <li key={idx}>{ex.name || ex.exerciseId?.name || 'Loading...'}</li>
-                ))}
-              </ol>
-            </div>
+            {workout.dayOfWeek !== 'Wednesday' && (
+              <div className="phase">
+                <h4>Phase 2:</h4>
+                <ol>
+                  {(workout.station1.phase2 || []).map((ex, idx) => (
+                    <li key={idx}>{ex.name || ex.exerciseId?.name || 'Loading...'}</li>
+                  ))}
+                </ol>
+              </div>
+            )}
           </div>
 
           <div className="station">

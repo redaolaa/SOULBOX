@@ -702,12 +702,35 @@ const generateWorkout = async (userId, dayOfWeek, weekStartDate) => {
     }
     await TriSet.findByIdAndUpdate(triSet1._id, { lastUsed: new Date() });
   } else {
-    const p1 = await selectExercises(userId, { station: 1, dayType, focus: focusForStation1 }, 3);
-    station1Phase1 = p1.map(ex => ({ _id: ex._id, name: ex.name }));
-    station1Phase1.forEach(ex => usedExerciseIds.push(ex._id));
-    const p2 = await selectExercises(userId, { station: 1, dayType, focus: focusForStation1 }, 3, station1Phase1.map(ex => ex._id));
-    station1Phase2 = p2.map(ex => ({ _id: ex._id, name: ex.name }));
-    station1Phase2.forEach(ex => usedExerciseIds.push(ex._id));
+    // Wednesday: always treat Station 1 as single-phase only (no Phase 2),
+    // regardless of stored dayType string.
+    const isWednesday = dayOfWeek === 'Wednesday';
+
+    if (isWednesday) {
+      // Wednesday: Station 1 should only generate Phase 1 (no Phase 2).
+      // Use the Phase 1 Wednesday Station 1 exercises (seeded from earlier weeks).
+      const wednesdayPhase1Names = ['THRUSTERS', 'DEVIL PRESS', 'BURPEES'];
+      const p1 = await selectExercises(
+        userId,
+        { station: 1, dayType, focus: focusForStation1, name: { $in: wednesdayPhase1Names } },
+        3
+      );
+      station1Phase1 = p1.map(ex => ({ _id: ex._id, name: ex.name }));
+      station1Phase1.forEach(ex => usedExerciseIds.push(ex._id));
+      station1Phase2 = [];
+    } else {
+      const p1 = await selectExercises(userId, { station: 1, dayType, focus: focusForStation1 }, 3);
+      station1Phase1 = p1.map(ex => ({ _id: ex._id, name: ex.name }));
+      station1Phase1.forEach(ex => usedExerciseIds.push(ex._id));
+      const p2 = await selectExercises(
+        userId,
+        { station: 1, dayType, focus: focusForStation1 },
+        3,
+        station1Phase1.map(ex => ex._id)
+      );
+      station1Phase2 = p2.map(ex => ({ _id: ex._id, name: ex.name }));
+      station1Phase2.forEach(ex => usedExerciseIds.push(ex._id));
+    }
   }
 
   // Station 2 - 3 combos
@@ -849,13 +872,27 @@ app.get('/api/workouts/week', authenticateToken, async (req, res) => {
     endDate.setDate(endDate.getDate() + 7);
 
     const userId = req.user.userId;
-    const workouts = await Workout.find({
+    let workouts = await Workout.find({
       userId,
       weekStartDate: { $gte: startDate, $lt: endDate }
     })
     .populate('station1.phase1.exerciseId station1.phase2.exerciseId station2.exerciseId station3.exerciseId')
     .sort({ dayOfWeek: 1 })
     .lean();
+
+    // For Wednesday, Station 1 should only expose Phase 1 in the app (no Phase 2).
+    workouts = workouts.map((w) => {
+      if (w.dayOfWeek === 'Wednesday' && w.station1 && Array.isArray(w.station1.phase2)) {
+        return {
+          ...w,
+          station1: {
+            ...w.station1,
+            phase2: []
+          }
+        };
+      }
+      return w;
+    });
 
     const normalized = workouts.map((w) => ({
       ...w,
@@ -934,10 +971,15 @@ app.delete('/api/blocked-days', authenticateToken, async (req, res) => {
 // Get workout by ID
 app.get('/api/workouts/:id', authenticateToken, async (req, res) => {
   try {
-    const workout = await Workout.findOne({ _id: req.params.id, userId: req.user.userId })
-      .populate('station1.phase1.exerciseId station1.phase2.exerciseId station2.exerciseId station3.exerciseId');
+    let workout = await Workout.findOne({ _id: req.params.id, userId: req.user.userId })
+      .populate('station1.phase1.exerciseId station1.phase2.exerciseId station2.exerciseId station3.exerciseId')
+      .lean();
     if (!workout) {
       return res.status(404).json({ error: 'Workout not found' });
+    }
+    // Wednesday Station 1: no Phase 2 in API
+    if (workout.dayOfWeek === 'Wednesday' && workout.station1 && Array.isArray(workout.station1.phase2)) {
+      workout = { ...workout, station1: { ...workout.station1, phase2: [] } };
     }
     res.json(workout);
   } catch (error) {
@@ -1186,6 +1228,11 @@ app.patch('/api/workouts/:id/exercise', authenticateToken, async (req, res) => {
     if (String(workout.userId) !== String(tokenUserId)) {
       return res.status(403).json({ error: "You don't have access to this workout. Try logging in again." });
     }
+    // Wednesday Station 1: keep phase2 empty in DB
+    if (workout.dayOfWeek === 'Wednesday' && workout.station1 && Array.isArray(workout.station1.phase2) && workout.station1.phase2.length > 0) {
+      workout.station1.phase2 = [];
+      workout.markModified('station1');
+    }
     const { phase, slotIndex, exerciseId, exerciseName } = req.body;
     const station = Number(req.body.station);
     if (Number.isNaN(station) || station < 1 || station > 3) {
@@ -1201,6 +1248,14 @@ app.patch('/api/workouts/:id/exercise', authenticateToken, async (req, res) => {
 
     if (station === 1) {
       if (!workout.station1) workout.station1 = { phase1: [], phase2: [] };
+      // Wednesday Station 1 has no Phase 2 — reject edits to it and keep phase2 empty
+      if (workout.dayOfWeek === 'Wednesday' && phase === 2) {
+        workout.station1.phase2 = [];
+        await workout.save();
+        const populated = await Workout.findById(workout._id)
+          .populate('station1.phase1.exerciseId station1.phase2.exerciseId station2.exerciseId station3.exerciseId');
+        return res.json(populated);
+      }
       const ph = phase === 2 ? 'phase2' : 'phase1';
       if (!Array.isArray(workout.station1[ph])) workout.station1[ph] = [];
       const arr = workout.station1[ph];

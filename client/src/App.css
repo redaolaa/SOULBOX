@@ -660,6 +660,7 @@
   background: var(--hover-bg);
   min-width: 380px;
   padding: 1.5rem 1.75rem;
+  z-index: 10;
 }
 
 .day-card.has-workout {
@@ -1011,6 +1012,20 @@
   line-height: 1.35;
   color: var(--text);
   word-break: break-word;
+}
+
+.editable-exercise-inline-input {
+  width: 100%;
+  padding: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+}
+
+.editable-exercise-inline-input::placeholder {
+  color: var(--text-muted, #888);
 }
 
 .editable-exercise-edit-btn {

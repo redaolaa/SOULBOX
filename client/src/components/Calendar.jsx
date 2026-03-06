@@ -454,35 +454,37 @@ const Calendar = () => {
                                   })}
                                 </ul>
                               </div>
-                              <div className="past-week-phase">
-                                <div className="past-week-phase-label">Phase 2</div>
-                                <ul className="past-week-list compact editable-list">
-                                  {[0, 1, 2].map((idx) => {
-                                    const ex = (workout.station1?.phase2 || [])[idx] || {};
-                                    const value = ex.name || ex.exerciseId?.name || '';
-                                    const currentExerciseId = ex?.exerciseId?._id ?? ex?.exerciseId ?? undefined;
-                                    return (
-                                      <li key={idx}>
-                                        <EditableExerciseSlot
-                                          value={value}
-                                          workoutId={getWorkoutId(workout)}
-                                          station={1}
-                                          phase={2}
-                                          slotIndex={idx}
-                                          dayType={workout.dayType}
-                                          filter={workout.filter}
-                                          weekStartDate={weekStartStr}
-                                          dayOfWeek={day}
-                                          onUpdate={(updated) => setWorkouts((prev) => ({ ...prev, [day]: updated }))}
-                                          slotLabel={String.fromCharCode(65 + idx)}
-                                          onWorkoutNotFound={loadWorkouts}
-                                          currentExerciseId={currentExerciseId}
-                                        />
-                                      </li>
-                                    );
-                                  })}
-                                </ul>
-                              </div>
+                              {day !== 'Wednesday' && (
+                                <div className="past-week-phase">
+                                  <div className="past-week-phase-label">Phase 2</div>
+                                  <ul className="past-week-list compact editable-list">
+                                    {[0, 1, 2].map((idx) => {
+                                      const ex = (workout.station1?.phase2 || [])[idx] || {};
+                                      const value = ex.name || ex.exerciseId?.name || '';
+                                      const currentExerciseId = ex?.exerciseId?._id ?? ex?.exerciseId ?? undefined;
+                                      return (
+                                        <li key={idx}>
+                                          <EditableExerciseSlot
+                                            value={value}
+                                            workoutId={getWorkoutId(workout)}
+                                            station={1}
+                                            phase={2}
+                                            slotIndex={idx}
+                                            dayType={workout.dayType}
+                                            filter={workout.filter}
+                                            weekStartDate={weekStartStr}
+                                            dayOfWeek={day}
+                                            onUpdate={(updated) => setWorkouts((prev) => ({ ...prev, [day]: updated }))}
+                                            slotLabel={String.fromCharCode(65 + idx)}
+                                            onWorkoutNotFound={loadWorkouts}
+                                            currentExerciseId={currentExerciseId}
+                                          />
+                                        </li>
+                                      );
+                                    })}
+                                  </ul>
+                                </div>
+                              )}
                             </>
                           )}
                         </div>

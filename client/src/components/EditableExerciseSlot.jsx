@@ -28,8 +28,10 @@ export default function EditableExerciseSlot({
   const [optimisticName, setOptimisticName] = useState(null);
   const [confirmModal, setConfirmModal] = useState(null); // { typedName } for "Edit or add new?"
   const [dropdownOpenCount, setDropdownOpenCount] = useState(0); // force search input to remount empty each open
+  const [inlineEditValue, setInlineEditValue] = useState(null); // when set, user is typing in the fixed name
   const dropdownRef = useRef(null);
   const searchInputRef = useRef(null);
+  const inlineInputRef = useRef(null);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -42,7 +44,6 @@ export default function EditableExerciseSlot({
     if (dropdownOpen) {
       setDropdownSearch('');
       setDropdownOpenCount((c) => c + 1); // remount search input so it's always empty
-      // Delay listener so the click that opened the dropdown isn't treated as outside
       const t = setTimeout(() => {
         document.addEventListener('mousedown', handleClickOutside);
       }, 0);
@@ -231,6 +232,11 @@ export default function EditableExerciseSlot({
     save(null, name).then(() => { setOptimisticName(null); notifyExerciseLab(); }).catch(() => setOptimisticName(null));
   };
 
+  const closeConfirmModal = () => {
+    setConfirmModal(null);
+    // Keep dropdown open and keep typed text so user can continue typing or pick from list
+  };
+
   if (disabled) {
     return <span className="editable-exercise-value">{value || '—'}</span>;
   }
@@ -255,11 +261,42 @@ export default function EditableExerciseSlot({
       <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
     </svg>
   );
+  const commitInlineEdit = (val) => {
+    const name = (val || '').trim();
+    setInlineEditValue(null);
+    if (!name) return;
+    const currentName = (value || '').trim();
+    if (name.toLowerCase() === currentName.toLowerCase()) return;
+    const match = exercises.find((ex) => (ex.name || '').trim().toLowerCase() === name.toLowerCase());
+    if (match) {
+      selectExercise(match);
+      return;
+    }
+    setConfirmModal({ typedName: name });
+  };
+
   if (!editing) {
     return (
       <div className="editable-exercise-slot editable-exercise-slot-fixed">
         {slotLabel && <span className="editable-slot-label">{slotLabel}.</span>}
-        <span className="editable-exercise-fixed-name">{displayName || '—'}</span>
+        <input
+          ref={inlineInputRef}
+          type="text"
+          className="editable-exercise-fixed-name editable-exercise-inline-input"
+          value={inlineEditValue !== null ? inlineEditValue : (displayName || '')}
+          onChange={(e) => setInlineEditValue(e.target.value)}
+          onFocus={() => setInlineEditValue(inlineEditValue !== null ? inlineEditValue : (displayName || ''))}
+          onBlur={(e) => commitInlineEdit(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              commitInlineEdit(inlineEditValue !== null ? inlineEditValue : (displayName || ''));
+              inlineInputRef.current?.blur();
+            }
+          }}
+          placeholder="Select or type exercise…"
+          aria-label="Exercise name"
+        />
         <span className="editable-slot-actions">
           <button
             type="button"
@@ -391,34 +428,34 @@ export default function EditableExerciseSlot({
           role="dialog"
           aria-modal="true"
           aria-labelledby="editable-exercise-confirm-title"
-          onClick={(e) => e.target === e.currentTarget && setConfirmModal(null)}
+          onClick={(e) => e.target === e.currentTarget && closeConfirmModal()}
         >
           <div className="editable-exercise-confirm-modal" onClick={(e) => e.stopPropagation()}>
             {currentExerciseId ? (
               <>
-                <p id="editable-exercise-confirm-title">Do you want to edit this exercise or add a new exercise?</p>
+                <p id="editable-exercise-confirm-title">Are you sure you want to add this new exercise?</p>
                 <p className="editable-exercise-confirm-name">&quot;{confirmModal.typedName}&quot;</p>
                 <div className="editable-exercise-confirm-actions">
-                  <button type="button" className="btn-secondary" onClick={handleConfirmEdit}>
-                    Edit existing
-                  </button>
                   <button type="button" className="btn-primary" onClick={handleConfirmAddNew}>
-                    Add new exercise
+                    Add
                   </button>
-                  <button type="button" className="btn-secondary" onClick={() => setConfirmModal(null)}>
+                  <button type="button" className="btn-secondary" onClick={handleConfirmEdit}>
+                    Edit existing instead
+                  </button>
+                  <button type="button" className="btn-secondary" onClick={closeConfirmModal}>
                     Cancel
                   </button>
                 </div>
               </>
             ) : (
               <>
-                <p id="editable-exercise-confirm-title">Add new exercise?</p>
+                <p id="editable-exercise-confirm-title">Are you sure you want to add this new exercise?</p>
                 <p className="editable-exercise-confirm-name">&quot;{confirmModal.typedName}&quot;</p>
                 <div className="editable-exercise-confirm-actions">
                   <button type="button" className="btn-primary" onClick={handleConfirmAddNew}>
                     Add
                   </button>
-                  <button type="button" className="btn-secondary" onClick={() => setConfirmModal(null)}>
+                  <button type="button" className="btn-secondary" onClick={closeConfirmModal}>
                     Cancel
                   </button>
                 </div>
