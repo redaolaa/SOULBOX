@@ -1227,6 +1227,14 @@
   margin-left: 0.25rem;
 }
 
+.editable-add-error {
+  display: block;
+  font-size: 0.75rem;
+  color: #e53935;
+  margin-top: 0.25rem;
+  grid-column: 1 / -1;
+}
+
 .workout-status {
   color: var(--text);
   font-weight: 500;
@@ -1814,6 +1822,35 @@
   font-size: 0.875rem;
 }
 
+.exercise-subsection {
+  margin-bottom: 2rem;
+}
+
+.exercise-subsection:last-child {
+  margin-bottom: 0;
+}
+
+.subsection-title {
+  font-size: 1.1rem;
+  margin: 0 0 0.35rem 0;
+  color: var(--text);
+}
+
+.newly-added-section .subsection-title {
+  color: var(--primary-color);
+}
+
+.subsection-hint {
+  font-size: 0.8125rem;
+  color: var(--text-light);
+  margin: 0 0 1rem 0;
+}
+
+.exercise-sublist {
+  display: grid;
+  gap: 1rem;
+}
+
 .empty-state {
   text-align: center;
   padding: 3rem 2rem;
@@ -1875,8 +1912,14 @@
   color: var(--text);
 }
 
+.exercise-added-on {
+  margin-top: 0.35rem;
+  font-size: 0.8125rem;
+  color: var(--text-light);
+}
+
 .exercise-last-saved {
-  margin-top: 0.5rem;
+  margin-top: 0.25rem;
   font-size: 0.8125rem;
   color: var(--text-light);
 }
@@ -1894,6 +1937,12 @@
   border-radius: 20px;
   font-size: 0.875rem;
   border: 1px solid var(--border);
+}
+
+.tag.tag-muted {
+  background: var(--hover-bg);
+  color: var(--text-light);
+  border-color: var(--border);
 }
 
 .tag.static {

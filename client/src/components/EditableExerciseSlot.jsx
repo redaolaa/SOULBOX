@@ -15,6 +15,7 @@ export default function EditableExerciseSlot({
   disabled = false,
   slotLabel,
   onWorkoutNotFound,
+  onRefreshWeek,
   weekStartDate,
   dayOfWeek,
   exerciseOptions = null,
@@ -29,9 +30,18 @@ export default function EditableExerciseSlot({
   const [confirmModal, setConfirmModal] = useState(null); // { typedName } for "Edit or add new?"
   const [dropdownOpenCount, setDropdownOpenCount] = useState(0); // force search input to remount empty each open
   const [inlineEditValue, setInlineEditValue] = useState(null); // when set, user is typing in the fixed name
+  const [addError, setAddError] = useState(null); // brief message when add-new fails
   const dropdownRef = useRef(null);
   const searchInputRef = useRef(null);
   const inlineInputRef = useRef(null);
+
+  useEffect(() => {
+    const v = (value || '').trim();
+    const o = (optimisticName || '').trim();
+    if (o && v && v.toLowerCase() === o.toLowerCase()) {
+      setOptimisticName(null);
+    }
+  }, [value, optimisticName]);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -60,9 +70,43 @@ export default function EditableExerciseSlot({
     }
   }, [dropdownOpen]);
 
+  const fetchExercisesList = async () => {
+    if (station === 1 && !dayType) {
+      setExercises([]);
+      return;
+    }
+    const params = new URLSearchParams({ station: String(station) });
+    if (dayType) params.set('dayType', dayType);
+    const res = await api.get(`/exercises?${params}`).catch(() => ({ data: [] }));
+    const raw = res.data || [];
+    const data = raw.filter((ex) => {
+      if (Number(ex.station) !== Number(station)) return false;
+      if (dayType && (ex.dayType || '').toString() !== (dayType || '').toString()) return false;
+      return true;
+    });
+    const normalizeNameForDedupe = (name) => {
+      const key = (name || '').trim().toLowerCase();
+      if (!key) return key;
+      const words = key.split(/\s+/);
+      const last = words[words.length - 1];
+      const noPluralS = ['focus', 'cross', 'press', 'bus', 'plus', 'us', 'is', 'as'];
+      if (last && last.length > 1 && last.endsWith('s') && !last.endsWith('ss') && !noPluralS.includes(last)) {
+        words[words.length - 1] = last.slice(0, -1);
+      }
+      return words.join(' ');
+    };
+    const seen = new Set();
+    const unique = data.filter((ex) => {
+      const key = normalizeNameForDedupe(ex.name);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    setExercises(unique.sort((a, b) => (a.name || '').localeCompare(b.name || '')));
+  };
+
   useEffect(() => {
     if (!workoutId || disabled) return;
-    // When parent passes Phase 2 options (e.g. Monday tri-set Phase 2), use them as the dropdown list
     if (Array.isArray(exerciseOptions) && exerciseOptions.length > 0) {
       const list = exerciseOptions.map((ex) => ({
         _id: ex._id || ex.exerciseId?._id,
@@ -75,45 +119,7 @@ export default function EditableExerciseSlot({
       setExercises([]);
       return;
     }
-
-    const fetchExercises = async () => {
-      // Station 1: request all exercises for this dayType (any focus — Upper, Lower, Mixed, Cardio, Abs, etc.) so users can assign any exercise to any day.
-      // Station 2 & 3: station + dayType only
-      const params = new URLSearchParams({ station: String(station) });
-      if (dayType) params.set('dayType', dayType);
-      // Do not send focus for Station 1 — server returns all Station 1 exercises for this dayType
-      const res = await api.get(`/exercises?${params}`).catch(() => ({ data: [] }));
-      const raw = res.data || [];
-      const data = raw.filter((ex) => {
-        if (Number(ex.station) !== Number(station)) return false;
-        if (dayType && (ex.dayType || '').toString() !== (dayType || '').toString()) return false;
-        return true;
-      });
-
-      // Deduplicate by normalized name
-      const normalizeNameForDedupe = (name) => {
-        const key = (name || '').trim().toLowerCase();
-        if (!key) return key;
-        const words = key.split(/\s+/);
-        const last = words[words.length - 1];
-        const noPluralS = ['focus', 'cross', 'press', 'bus', 'plus', 'us', 'is', 'as'];
-        if (last && last.length > 1 && last.endsWith('s') && !last.endsWith('ss') && !noPluralS.includes(last)) {
-          words[words.length - 1] = last.slice(0, -1);
-        }
-        return words.join(' ');
-      };
-      const seen = new Set();
-      const unique = data.filter((ex) => {
-        const key = normalizeNameForDedupe(ex.name);
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
-
-      setExercises(unique.sort((a, b) => (a.name || '').localeCompare(b.name || '')));
-    };
-
-    fetchExercises();
+    fetchExercisesList();
   }, [workoutId, station, dayType, filter, disabled, exerciseOptions]);
 
   const save = async (exerciseId, exerciseName) => {
@@ -135,10 +141,57 @@ export default function EditableExerciseSlot({
         payload.exerciseId = exId != null ? String(exId) : exerciseId;
       } else {
         payload.exerciseName = (exerciseName || '').trim();
+        if (dayType) payload.dayType = dayType;
+        if (filter) payload.filter = filter;
       }
       const urlId = id || '000000000000000000000000';
       const res = await api.patch(`/workouts/${urlId}/exercise`, payload);
-      onUpdate?.(res.data);
+      const data = res.data;
+      const mergedDay = (data && data.dayOfWeek) ? String(data.dayOfWeek) : (dayOfWeek ? String(dayOfWeek) : null);
+      if (data && mergedDay) {
+        const normalized = { ...data, _id: data._id != null ? String(data._id) : data._id, dayOfWeek: mergedDay };
+        const fillSlotName = (slot) => {
+          if (slot && !slot.name && slot.exerciseId && slot.exerciseId.name) {
+            return { ...slot, name: slot.exerciseId.name };
+          }
+          return slot;
+        };
+        if (normalized.station1 && normalized.station1.phase1 && Array.isArray(normalized.station1.phase1)) {
+          normalized.station1 = {
+            ...normalized.station1,
+            phase1: normalized.station1.phase1.map(fillSlotName)
+          };
+        }
+        if (normalized.station1 && normalized.station1.phase2 && Array.isArray(normalized.station1.phase2)) {
+          normalized.station1.phase2 = normalized.station1.phase2.map(fillSlotName);
+        }
+        if (normalized.station2 && Array.isArray(normalized.station2)) {
+          normalized.station2 = normalized.station2.map(fillSlotName);
+        }
+        if (normalized.station3 && Array.isArray(normalized.station3)) {
+          normalized.station3 = normalized.station3.map(fillSlotName);
+        }
+        // When we just added by name, force this slot to show that name so parent state is correct
+        const addedName = (exerciseName || '').trim();
+        if (addedName && station === 1 && normalized.station1) {
+          const ph = phase === 2 ? 'phase2' : 'phase1';
+          const arr = normalized.station1[ph];
+          if (Array.isArray(arr) && arr[slotIndex] != null) {
+            arr[slotIndex] = { ...arr[slotIndex], name: addedName };
+          }
+        } else if (addedName && (station === 2 || station === 3)) {
+          const key = station === 2 ? 'station2' : 'station3';
+          const arr = normalized[key];
+          if (Array.isArray(arr) && arr[slotIndex] != null) {
+            arr[slotIndex] = { ...arr[slotIndex], name: addedName };
+          }
+        }
+        if (import.meta.env?.DEV && exerciseName) {
+          const slotName = station === 1 ? (normalized.station1?.[phase === 2 ? 'phase2' : 'phase1']?.[slotIndex]?.name) : normalized[station === 2 ? 'station2' : 'station3']?.[slotIndex]?.name;
+          console.log('[EditableExerciseSlot] Add success', { mergedDay, slotName, sentName: (exerciseName || '').trim() });
+        }
+        onUpdate?.(normalized);
+      }
       return Promise.resolve();
     } catch (err) {
       const status = err.response?.status;
@@ -228,13 +281,33 @@ export default function EditableExerciseSlot({
     setConfirmModal(null);
     setDropdownOpen(false);
     setEditing(false);
+    setAddError(null);
     setOptimisticName(name);
-    save(null, name).then(() => { setOptimisticName(null); notifyExerciseLab(); }).catch(() => setOptimisticName(null));
+    try {
+      await save(null, name);
+      notifyExerciseLab();
+      if (!Array.isArray(exerciseOptions) || exerciseOptions.length === 0) {
+        fetchExercisesList();
+      }
+      if (typeof onRefreshWeek === 'function') {
+        setTimeout(() => onRefreshWeek(), 400);
+      }
+    } catch (err) {
+      setOptimisticName(null);
+      if (err.response?.status === 404) onWorkoutNotFound?.();
+      else {
+        setAddError('Could not add exercise. Try again.');
+        setTimeout(() => setAddError(null), 4000);
+      }
+    }
   };
 
   const closeConfirmModal = () => {
     setConfirmModal(null);
-    // Keep dropdown open and keep typed text so user can continue typing or pick from list
+    setDropdownSearch('');
+    setInlineEditValue(null);
+    setDropdownOpen(false);
+    setEditing(false);
   };
 
   if (disabled) {
@@ -313,6 +386,7 @@ export default function EditableExerciseSlot({
           </button>
           {saving && <span className="editable-saving">Saving…</span>}
         </span>
+        {addError && <span className="editable-add-error" role="alert">{addError}</span>}
       </div>
     );
   }

@@ -213,11 +213,13 @@ const Calendar = () => {
 
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Saturday'];
 
-  // Allow regenerate/generate only for the current or future program weeks (not past weeks)
+  // Allow regenerate/generate only for the current or future program weeks (not past weeks).
+  // Compare by date string (YYYY-MM-DD) so timezone doesn't make a future week appear past (e.g. week 209).
   const isPastWeek = (() => {
     const todayWeekStart = getWeekStart(new Date());
     const thisWeekStart = getWeekStart(weekStart);
-    return thisWeekStart < todayWeekStart;
+    const toDateStr = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    return toDateStr(thisWeekStart) < toDateStr(todayWeekStart);
   })();
 
   // Month grid: build array of weeks (each week = 7 days, empty cells for padding)
@@ -411,7 +413,11 @@ const Calendar = () => {
                               weekStartDate={weekStartStr}
                               weekNumber={getProgramWeekNumber(weekStart)}
                               dayOfWeek={day}
-                              onUpdate={(updated) => setWorkouts((prev) => ({ ...prev, [day]: updated }))}
+                              onUpdate={(updated) => {
+                                            if (!updated) return;
+                                            const key = (updated.dayOfWeek && String(updated.dayOfWeek)) || day;
+                                            setWorkouts((prev) => ({ ...prev, [key]: { ...(prev[key] || {}), ...updated } }));
+                                          }}
                               disabled={false}
                             />
                           ) : day === 'Saturday' && getWorkoutId(workout) ? (
@@ -420,7 +426,11 @@ const Calendar = () => {
                               workout={workout}
                               weekStartDate={weekStartStr}
                               dayOfWeek={day}
-                              onUpdate={(updated) => setWorkouts((prev) => ({ ...prev, [day]: updated }))}
+                              onUpdate={(updated) => {
+                                            if (!updated) return;
+                                            const key = (updated.dayOfWeek && String(updated.dayOfWeek)) || day;
+                                            setWorkouts((prev) => ({ ...prev, [key]: { ...(prev[key] || {}), ...updated } }));
+                                          }}
                               disabled={false}
                             />
                           ) : (
@@ -444,9 +454,14 @@ const Calendar = () => {
                                           filter={workout.filter}
                                           weekStartDate={weekStartStr}
                                           dayOfWeek={day}
-                                          onUpdate={(updated) => setWorkouts((prev) => ({ ...prev, [day]: updated }))}
+                                          onUpdate={(updated) => {
+                                            if (!updated) return;
+                                            const key = (updated.dayOfWeek && String(updated.dayOfWeek)) || day;
+                                            setWorkouts((prev) => ({ ...prev, [key]: { ...(prev[key] || {}), ...updated } }));
+                                          }}
                                           slotLabel={String.fromCharCode(65 + idx)}
                                           onWorkoutNotFound={loadWorkouts}
+                                          onRefreshWeek={loadWorkouts}
                                           currentExerciseId={currentExerciseId}
                                         />
                                       </li>
@@ -474,9 +489,14 @@ const Calendar = () => {
                                             filter={workout.filter}
                                             weekStartDate={weekStartStr}
                                             dayOfWeek={day}
-                                            onUpdate={(updated) => setWorkouts((prev) => ({ ...prev, [day]: updated }))}
+                                            onUpdate={(updated) => {
+                                            if (!updated) return;
+                                            const key = (updated.dayOfWeek && String(updated.dayOfWeek)) || day;
+                                            setWorkouts((prev) => ({ ...prev, [key]: { ...(prev[key] || {}), ...updated } }));
+                                          }}
                                             slotLabel={String.fromCharCode(65 + idx)}
                                             onWorkoutNotFound={loadWorkouts}
+                                          onRefreshWeek={loadWorkouts}
                                             currentExerciseId={currentExerciseId}
                                           />
                                         </li>
@@ -508,9 +528,14 @@ const Calendar = () => {
                                   filter={workout.filter}
                                   weekStartDate={weekStartStr}
                                   dayOfWeek={day}
-                                  onUpdate={(updated) => setWorkouts((prev) => ({ ...prev, [day]: updated }))}
+                                  onUpdate={(updated) => {
+                                            if (!updated) return;
+                                            const key = (updated.dayOfWeek && String(updated.dayOfWeek)) || day;
+                                            setWorkouts((prev) => ({ ...prev, [key]: { ...(prev[key] || {}), ...updated } }));
+                                          }}
                                   slotLabel={String.fromCharCode(65 + idx)}
                                   onWorkoutNotFound={loadWorkouts}
+                                          onRefreshWeek={loadWorkouts}
                                   currentExerciseId={currentExerciseId}
                                 />
                               </li>
@@ -547,9 +572,14 @@ const Calendar = () => {
                                     filter={workout.filter}
                                     weekStartDate={weekStartStr}
                                     dayOfWeek={day}
-                                    onUpdate={(updated) => setWorkouts((prev) => ({ ...prev, [day]: updated }))}
+                                    onUpdate={(updated) => {
+                                            if (!updated) return;
+                                            const key = (updated.dayOfWeek && String(updated.dayOfWeek)) || day;
+                                            setWorkouts((prev) => ({ ...prev, [key]: { ...(prev[key] || {}), ...updated } }));
+                                          }}
                                     slotLabel={String.fromCharCode(65 + idx)}
                                     onWorkoutNotFound={loadWorkouts}
+                                          onRefreshWeek={loadWorkouts}
                                     currentExerciseId={currentExerciseId}
                                   />
                                 </li>

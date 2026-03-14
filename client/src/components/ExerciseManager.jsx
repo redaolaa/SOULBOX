@@ -272,12 +272,25 @@ const ExerciseManager = () => {
 
   // Deduplicate by normalized name so each exercise appears once in the list
   const seenNames = new Set();
-  const filteredExercises = filteredByFilters.filter(ex => {
+  const deduped = filteredByFilters.filter(ex => {
     const key = normalizeNameForDedupe(ex.name);
     if (seenNames.has(key)) return false;
     seenNames.add(key);
     return true;
   });
+  // Newest first
+  const sorted = [...deduped].sort((a, b) => {
+    const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const tB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return tB - tA;
+  });
+
+  // Never edited = newly added (once you save an edit, updatedAt > createdAt so it moves out)
+  const isNewlyAdded = (ex) =>
+    ex.createdAt && (!ex.updatedAt || new Date(ex.updatedAt).getTime() === new Date(ex.createdAt).getTime());
+
+  const newlyAddedExercises = sorted.filter(isNewlyAdded);
+  const restExercises = sorted.filter((ex) => !isNewlyAdded(ex));
 
   const justRegistered = sessionStorage.getItem('justRegistered') === 'true';
   const showWelcome = justRegistered && !loading && exercises.length === 0;
@@ -720,7 +733,7 @@ const ExerciseManager = () => {
           aria-expanded={exercisesSectionOpen}
         >
           <span className="collapsible-section-title">Exercises</span>
-          <span className="collapsible-section-meta">{filteredExercises.length} exercise{filteredExercises.length !== 1 ? 's' : ''}</span>
+          <span className="collapsible-section-meta">{newlyAddedExercises.length + restExercises.length} exercise{(newlyAddedExercises.length + restExercises.length) !== 1 ? 's' : ''}</span>
           <span className="collapsible-section-chevron">{exercisesSectionOpen ? '▼' : '▶'}</span>
         </button>
         {exercisesSectionOpen && (
@@ -765,140 +778,284 @@ const ExerciseManager = () => {
         <div className="loading">Loading exercises...</div>
       ) : (
         <div className="exercise-list">
-          {filteredExercises.length === 0 ? (
+          {newlyAddedExercises.length === 0 && restExercises.length === 0 ? (
             <div className="empty-state">
               <p>No exercises found. Add exercises in the Exercise Lab — they appear in dropdowns when editing workouts.</p>
               <p className="empty-hint">Add exercises here — they appear in the dropdown when editing workouts on the Calendar.</p>
             </div>
           ) : (
             <>
-              <div className="exercise-stats">
-                <p>Total: {filteredExercises.length} exercise{filteredExercises.length !== 1 ? 's' : ''}</p>
-              </div>
-              {filteredExercises.map(ex => (
-                <div key={ex._id} className="exercise-item">
-                  {editingId === ex._id && editFormData ? (
-                    <form
-                      className="exercise-form exercise-edit-form"
-                      onSubmit={(e) => handleEditSubmit(e, ex._id)}
-                    >
-                      <div className="form-row">
-                        <div className="form-group">
-                          <label>Exercise Name</label>
-                          <input
-                            type="text"
-                            value={editFormData.name}
-                            onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
-                            required
-                          />
-                        </div>
-                        <div className="form-group">
-                          <label>Station</label>
-                          <select
-                            value={editFormData.station}
-                            onChange={(e) => setEditFormData({ ...editFormData, station: parseInt(e.target.value) })}
+              {newlyAddedExercises.length > 0 && (
+                <section className="exercise-subsection newly-added-section" aria-label="Newly added">
+                  <h3 className="subsection-title">Newly added</h3>
+                  <p className="subsection-hint">Edit to set focus, day type, etc. Once you save changes, the exercise moves to the list below.</p>
+                  <div className="exercise-sublist">
+                    {newlyAddedExercises.map(ex => (
+                      <div key={ex._id} className="exercise-item">
+                        {editingId === ex._id && editFormData ? (
+                          <form
+                            className="exercise-form exercise-edit-form"
+                            onSubmit={(e) => handleEditSubmit(e, ex._id)}
                           >
-                            <option value={1}>Station 1</option>
-                            <option value={2}>Station 2</option>
-                            <option value={3}>Station 3</option>
-                          </select>
-                        </div>
-                      </div>
-                      <div className="form-row">
-                        {editFormData.station === 1 && (
-                          <div className="form-group">
-                            <label>Focus</label>
-                            <select
-                              value={editFormData.focus || 'Upper'}
-                              onChange={(e) => setEditFormData({ ...editFormData, focus: e.target.value })}
-                            >
-                              <option value="Upper">Upper Body</option>
-                              <option value="Lower">Lower Body</option>
-                              <option value="Mixed">Mixed</option>
-                              <option value="Full Body">Full Body</option>
-                              <option value="Cardio">Cardio</option>
-                              <option value="Abs">Abs</option>
-                            </select>
-                          </div>
+                            <div className="form-row">
+                              <div className="form-group">
+                                <label>Exercise Name</label>
+                                <input
+                                  type="text"
+                                  value={editFormData.name}
+                                  onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                                  required
+                                />
+                              </div>
+                              <div className="form-group">
+                                <label>Station</label>
+                                <select
+                                  value={editFormData.station}
+                                  onChange={(e) => setEditFormData({ ...editFormData, station: parseInt(e.target.value) })}
+                                >
+                                  <option value={1}>Station 1</option>
+                                  <option value={2}>Station 2</option>
+                                  <option value={3}>Station 3</option>
+                                </select>
+                              </div>
+                            </div>
+                            <div className="form-row">
+                              {editFormData.station === 1 && (
+                                <div className="form-group">
+                                  <label>Focus</label>
+                                  <select
+                                    value={editFormData.focus || 'Upper'}
+                                    onChange={(e) => setEditFormData({ ...editFormData, focus: e.target.value })}
+                                  >
+                                    <option value="Upper">Upper Body</option>
+                                    <option value="Lower">Lower Body</option>
+                                    <option value="Mixed">Mixed</option>
+                                    <option value="Full Body">Full Body</option>
+                                    <option value="Cardio">Cardio</option>
+                                    <option value="Abs">Abs</option>
+                                  </select>
+                                </div>
+                              )}
+                              <div className="form-group">
+                                <label>Day Type</label>
+                                <select
+                                  value={editFormData.dayType}
+                                  onChange={(e) => setEditFormData({ ...editFormData, dayType: e.target.value })}
+                                >
+                                  <option value="Kickboxing">Kickboxing</option>
+                                  <option value="Boxing">Boxing</option>
+                                  <option value="Technique">Technique</option>
+                                  <option value="Conditioning">Conditioning</option>
+                                </select>
+                              </div>
+                            </div>
+                            <div className="form-group">
+                              <label>
+                                <input
+                                  type="checkbox"
+                                  checked={editFormData.isStatic}
+                                  onChange={(e) => setEditFormData({ ...editFormData, isStatic: e.target.checked })}
+                                />
+                                Static Exercise (e.g., Non-stop Sparring)
+                              </label>
+                            </div>
+                            {editFormData.isStatic && editFormData.station === 3 && (
+                              <div className="form-group">
+                                <label>Static Condition</label>
+                                <select
+                                  value={editFormData.staticCondition || ''}
+                                  onChange={(e) => setEditFormData({ ...editFormData, staticCondition: e.target.value || null })}
+                                >
+                                  <option value="">None</option>
+                                  <option value="kickboxing-station3-b">Kickboxing - Station 3 B</option>
+                                  <option value="boxing-station3-b">Boxing - Station 3 B</option>
+                                </select>
+                              </div>
+                            )}
+                            <div className="exercise-edit-actions">
+                              <button type="button" className="btn-secondary" onClick={handleEditCancel}>
+                                Cancel
+                              </button>
+                              <button type="submit" className="btn-primary">Save changes</button>
+                            </div>
+                          </form>
+                        ) : (
+                          <>
+                            <div className="exercise-info">
+                              <h4>{ex.name}</h4>
+                              <div className="exercise-tags">
+                                <span className="tag">Station {ex.station}</span>
+                                {ex.station === 1 && ex.focus && <span className="tag">{ex.focus}</span>}
+                                {ex.station === 1 && !ex.focus && <span className="tag tag-muted">No focus</span>}
+                                <span className="tag">{ex.dayType}</span>
+                                {ex.isStatic && <span className="tag static">Static</span>}
+                              </div>
+                              {ex.createdAt && (
+                                <div className="exercise-added-on">
+                                  Added on {new Date(ex.createdAt).toLocaleDateString(undefined, { dateStyle: 'medium' })}
+                                </div>
+                              )}
+                            </div>
+                            <div className="exercise-item-actions">
+                              <button
+                                type="button"
+                                className="btn-secondary btn-small"
+                                onClick={() => handleEditStart(ex)}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                className="btn-danger btn-small"
+                                onClick={() => handleDelete(ex._id)}
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </>
                         )}
-                        <div className="form-group">
-                          <label>Day Type</label>
-                          <select
-                            value={editFormData.dayType}
-                            onChange={(e) => setEditFormData({ ...editFormData, dayType: e.target.value })}
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {restExercises.length > 0 && (
+                <section className="exercise-subsection rest-exercises-section" aria-label="All other exercises">
+                  <h3 className="subsection-title">{newlyAddedExercises.length > 0 ? 'All other exercises' : 'Exercises'}</h3>
+                  <div className="exercise-sublist">
+                    {restExercises.map(ex => (
+                      <div key={ex._id} className="exercise-item">
+                        {editingId === ex._id && editFormData ? (
+                          <form
+                            className="exercise-form exercise-edit-form"
+                            onSubmit={(e) => handleEditSubmit(e, ex._id)}
                           >
-                            <option value="Kickboxing">Kickboxing</option>
-                            <option value="Boxing">Boxing</option>
-                            <option value="Technique">Technique</option>
-                            <option value="Conditioning">Conditioning</option>
-                          </select>
-                        </div>
-                      </div>
-                      <div className="form-group">
-                        <label>
-                          <input
-                            type="checkbox"
-                            checked={editFormData.isStatic}
-                            onChange={(e) => setEditFormData({ ...editFormData, isStatic: e.target.checked })}
-                          />
-                          Static Exercise (e.g., Non-stop Sparring)
-                        </label>
-                      </div>
-                      {editFormData.isStatic && editFormData.station === 3 && (
-                        <div className="form-group">
-                          <label>Static Condition</label>
-                          <select
-                            value={editFormData.staticCondition || ''}
-                            onChange={(e) => setEditFormData({ ...editFormData, staticCondition: e.target.value || null })}
-                          >
-                            <option value="">None</option>
-                            <option value="kickboxing-station3-b">Kickboxing - Station 3 B</option>
-                            <option value="boxing-station3-b">Boxing - Station 3 B</option>
-                          </select>
-                        </div>
-                      )}
-                      <div className="exercise-edit-actions">
-                        <button type="button" className="btn-secondary" onClick={handleEditCancel}>
-                          Cancel
-                        </button>
-                        <button type="submit" className="btn-primary">Save changes</button>
-                      </div>
-                    </form>
-                  ) : (
-                    <>
-                      <div className="exercise-info">
-                        <h4>{ex.name}</h4>
-                        <div className="exercise-tags">
-                          <span className="tag">Station {ex.station}</span>
-                          {ex.station === 1 && ex.focus && <span className="tag">{ex.focus}</span>}
-                          <span className="tag">{ex.dayType}</span>
-                          {ex.isStatic && <span className="tag static">Static</span>}
-                        </div>
-                        {ex.updatedAt && (
-                          <div className="exercise-last-saved">
-                            Last saved: {new Date(ex.updatedAt).toLocaleDateString(undefined, { dateStyle: 'medium' })}
-                          </div>
+                            <div className="form-row">
+                              <div className="form-group">
+                                <label>Exercise Name</label>
+                                <input
+                                  type="text"
+                                  value={editFormData.name}
+                                  onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                                  required
+                                />
+                              </div>
+                              <div className="form-group">
+                                <label>Station</label>
+                                <select
+                                  value={editFormData.station}
+                                  onChange={(e) => setEditFormData({ ...editFormData, station: parseInt(e.target.value) })}
+                                >
+                                  <option value={1}>Station 1</option>
+                                  <option value={2}>Station 2</option>
+                                  <option value={3}>Station 3</option>
+                                </select>
+                              </div>
+                            </div>
+                            <div className="form-row">
+                              {editFormData.station === 1 && (
+                                <div className="form-group">
+                                  <label>Focus</label>
+                                  <select
+                                    value={editFormData.focus || 'Upper'}
+                                    onChange={(e) => setEditFormData({ ...editFormData, focus: e.target.value })}
+                                  >
+                                    <option value="Upper">Upper Body</option>
+                                    <option value="Lower">Lower Body</option>
+                                    <option value="Mixed">Mixed</option>
+                                    <option value="Full Body">Full Body</option>
+                                    <option value="Cardio">Cardio</option>
+                                    <option value="Abs">Abs</option>
+                                  </select>
+                                </div>
+                              )}
+                              <div className="form-group">
+                                <label>Day Type</label>
+                                <select
+                                  value={editFormData.dayType}
+                                  onChange={(e) => setEditFormData({ ...editFormData, dayType: e.target.value })}
+                                >
+                                  <option value="Kickboxing">Kickboxing</option>
+                                  <option value="Boxing">Boxing</option>
+                                  <option value="Technique">Technique</option>
+                                  <option value="Conditioning">Conditioning</option>
+                                </select>
+                              </div>
+                            </div>
+                            <div className="form-group">
+                              <label>
+                                <input
+                                  type="checkbox"
+                                  checked={editFormData.isStatic}
+                                  onChange={(e) => setEditFormData({ ...editFormData, isStatic: e.target.checked })}
+                                />
+                                Static Exercise (e.g., Non-stop Sparring)
+                              </label>
+                            </div>
+                            {editFormData.isStatic && editFormData.station === 3 && (
+                              <div className="form-group">
+                                <label>Static Condition</label>
+                                <select
+                                  value={editFormData.staticCondition || ''}
+                                  onChange={(e) => setEditFormData({ ...editFormData, staticCondition: e.target.value || null })}
+                                >
+                                  <option value="">None</option>
+                                  <option value="kickboxing-station3-b">Kickboxing - Station 3 B</option>
+                                  <option value="boxing-station3-b">Boxing - Station 3 B</option>
+                                </select>
+                              </div>
+                            )}
+                            <div className="exercise-edit-actions">
+                              <button type="button" className="btn-secondary" onClick={handleEditCancel}>
+                                Cancel
+                              </button>
+                              <button type="submit" className="btn-primary">Save changes</button>
+                            </div>
+                          </form>
+                        ) : (
+                          <>
+                            <div className="exercise-info">
+                              <h4>{ex.name}</h4>
+                              <div className="exercise-tags">
+                                <span className="tag">Station {ex.station}</span>
+                                {ex.station === 1 && ex.focus && <span className="tag">{ex.focus}</span>}
+                                {ex.station === 1 && !ex.focus && <span className="tag tag-muted">No focus</span>}
+                                <span className="tag">{ex.dayType}</span>
+                                {ex.isStatic && <span className="tag static">Static</span>}
+                              </div>
+                              {ex.createdAt && (
+                                <div className="exercise-added-on">
+                                  Added on {new Date(ex.createdAt).toLocaleDateString(undefined, { dateStyle: 'medium' })}
+                                </div>
+                              )}
+                              {ex.updatedAt && (!ex.createdAt || new Date(ex.updatedAt).getTime() !== new Date(ex.createdAt).getTime()) && (
+                                <div className="exercise-last-saved">
+                                  Last saved: {new Date(ex.updatedAt).toLocaleDateString(undefined, { dateStyle: 'medium' })}
+                                </div>
+                              )}
+                            </div>
+                            <div className="exercise-item-actions">
+                              <button
+                                type="button"
+                                className="btn-secondary btn-small"
+                                onClick={() => handleEditStart(ex)}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                className="btn-danger btn-small"
+                                onClick={() => handleDelete(ex._id)}
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </>
                         )}
                       </div>
-                      <div className="exercise-item-actions">
-                        <button
-                          type="button"
-                          className="btn-secondary btn-small"
-                          onClick={() => handleEditStart(ex)}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          className="btn-danger btn-small"
-                          onClick={() => handleDelete(ex._id)}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              ))}
+                    ))}
+                  </div>
+                </section>
+              )}
             </>
           )}
         </div>
