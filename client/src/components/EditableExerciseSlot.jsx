@@ -70,13 +70,44 @@ export default function EditableExerciseSlot({
     }
   }, [dropdownOpen]);
 
-  const fetchExercisesList = async () => {
-    if (station === 1 && !dayType) {
-      setExercises([]);
-      return;
+  const normalizeNameForDedupe = (name) => {
+    const key = (name || '').trim().toLowerCase();
+    if (!key) return key;
+    const words = key.split(/\s+/);
+    const last = words[words.length - 1];
+    const noPluralS = ['focus', 'cross', 'press', 'bus', 'plus', 'us', 'is', 'as'];
+    if (last && last.length > 1 && last.endsWith('s') && !last.endsWith('ss') && !noPluralS.includes(last)) {
+      words[words.length - 1] = last.slice(0, -1);
+    }
+    return words.join(' ');
+  };
+
+  /** Same list as the dropdown: tri-set options when provided, else API by station + dayType (+ focus for Station 1 when filter is set). */
+  const buildExercisePool = async () => {
+    if (station === 1 && !dayType) return [];
+    if (Array.isArray(exerciseOptions) && exerciseOptions.length > 0) {
+      const list = exerciseOptions
+        .map((ex) => ({
+          _id: ex._id || ex.exerciseId?._id,
+          name: ex.name || ex.exerciseId?.name || ''
+        }))
+        .filter((ex) => ex._id && ex.name);
+      return list;
     }
     const params = new URLSearchParams({ station: String(station) });
     if (dayType) params.set('dayType', dayType);
+    if (station === 1 && filter) {
+      const focusMap = {
+        'Upper Body': 'Upper',
+        'Lower Body': 'Lower',
+        'Mixed/Full Body': 'Mixed',
+        'Full Body': 'Full Body',
+        Cardio: 'Cardio',
+        Abs: 'Abs'
+      };
+      const f = focusMap[filter];
+      if (f) params.set('focus', f);
+    }
     const res = await api.get(`/exercises?${params}`).catch(() => ({ data: [] }));
     const raw = res.data || [];
     const data = raw.filter((ex) => {
@@ -84,17 +115,6 @@ export default function EditableExerciseSlot({
       if (dayType && (ex.dayType || '').toString() !== (dayType || '').toString()) return false;
       return true;
     });
-    const normalizeNameForDedupe = (name) => {
-      const key = (name || '').trim().toLowerCase();
-      if (!key) return key;
-      const words = key.split(/\s+/);
-      const last = words[words.length - 1];
-      const noPluralS = ['focus', 'cross', 'press', 'bus', 'plus', 'us', 'is', 'as'];
-      if (last && last.length > 1 && last.endsWith('s') && !last.endsWith('ss') && !noPluralS.includes(last)) {
-        words[words.length - 1] = last.slice(0, -1);
-      }
-      return words.join(' ');
-    };
     const seen = new Set();
     const unique = data.filter((ex) => {
       const key = normalizeNameForDedupe(ex.name);
@@ -102,7 +122,12 @@ export default function EditableExerciseSlot({
       seen.add(key);
       return true;
     });
-    setExercises(unique.sort((a, b) => (a.name || '').localeCompare(b.name || '')));
+    return unique.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  };
+
+  const fetchExercisesList = async () => {
+    const list = await buildExercisePool();
+    setExercises(list);
   };
 
   useEffect(() => {
@@ -121,6 +146,49 @@ export default function EditableExerciseSlot({
     }
     fetchExercisesList();
   }, [workoutId, station, dayType, filter, disabled, exerciseOptions]);
+
+  const mergeWorkoutResponse = (data, exerciseNameOverride) => {
+    if (!data) return;
+    const mergedDay = (data && data.dayOfWeek != null) ? String(data.dayOfWeek) : (dayOfWeek ? String(dayOfWeek) : null);
+    if (!mergedDay) return;
+    const normalized = { ...data, _id: data._id != null ? String(data._id) : data._id, dayOfWeek: mergedDay };
+    const fillSlotName = (slot) => {
+      if (slot && !slot.name && slot.exerciseId && slot.exerciseId.name) {
+        return { ...slot, name: slot.exerciseId.name };
+      }
+      return slot;
+    };
+    if (normalized.station1 && normalized.station1.phase1 && Array.isArray(normalized.station1.phase1)) {
+      normalized.station1 = {
+        ...normalized.station1,
+        phase1: normalized.station1.phase1.map(fillSlotName)
+      };
+    }
+    if (normalized.station1 && normalized.station1.phase2 && Array.isArray(normalized.station1.phase2)) {
+      normalized.station1.phase2 = normalized.station1.phase2.map(fillSlotName);
+    }
+    if (normalized.station2 && Array.isArray(normalized.station2)) {
+      normalized.station2 = normalized.station2.map(fillSlotName);
+    }
+    if (normalized.station3 && Array.isArray(normalized.station3)) {
+      normalized.station3 = normalized.station3.map(fillSlotName);
+    }
+    const addedName = (exerciseNameOverride || '').trim();
+    if (addedName && station === 1 && normalized.station1) {
+      const ph = phase === 2 ? 'phase2' : 'phase1';
+      const arr = normalized.station1[ph];
+      if (Array.isArray(arr) && arr[slotIndex] != null) {
+        arr[slotIndex] = { ...arr[slotIndex], name: addedName };
+      }
+    } else if (addedName && (station === 2 || station === 3)) {
+      const key = station === 2 ? 'station2' : 'station3';
+      const arr = normalized[key];
+      if (Array.isArray(arr) && arr[slotIndex] != null) {
+        arr[slotIndex] = { ...arr[slotIndex], name: addedName };
+      }
+    }
+    onUpdate?.(normalized);
+  };
 
   const save = async (exerciseId, exerciseName) => {
     const id = getWorkoutId(workoutId);
@@ -146,52 +214,7 @@ export default function EditableExerciseSlot({
       }
       const urlId = id || '000000000000000000000000';
       const res = await api.patch(`/workouts/${urlId}/exercise`, payload);
-      const data = res.data;
-      const mergedDay = (data && data.dayOfWeek) ? String(data.dayOfWeek) : (dayOfWeek ? String(dayOfWeek) : null);
-      if (data && mergedDay) {
-        const normalized = { ...data, _id: data._id != null ? String(data._id) : data._id, dayOfWeek: mergedDay };
-        const fillSlotName = (slot) => {
-          if (slot && !slot.name && slot.exerciseId && slot.exerciseId.name) {
-            return { ...slot, name: slot.exerciseId.name };
-          }
-          return slot;
-        };
-        if (normalized.station1 && normalized.station1.phase1 && Array.isArray(normalized.station1.phase1)) {
-          normalized.station1 = {
-            ...normalized.station1,
-            phase1: normalized.station1.phase1.map(fillSlotName)
-          };
-        }
-        if (normalized.station1 && normalized.station1.phase2 && Array.isArray(normalized.station1.phase2)) {
-          normalized.station1.phase2 = normalized.station1.phase2.map(fillSlotName);
-        }
-        if (normalized.station2 && Array.isArray(normalized.station2)) {
-          normalized.station2 = normalized.station2.map(fillSlotName);
-        }
-        if (normalized.station3 && Array.isArray(normalized.station3)) {
-          normalized.station3 = normalized.station3.map(fillSlotName);
-        }
-        // When we just added by name, force this slot to show that name so parent state is correct
-        const addedName = (exerciseName || '').trim();
-        if (addedName && station === 1 && normalized.station1) {
-          const ph = phase === 2 ? 'phase2' : 'phase1';
-          const arr = normalized.station1[ph];
-          if (Array.isArray(arr) && arr[slotIndex] != null) {
-            arr[slotIndex] = { ...arr[slotIndex], name: addedName };
-          }
-        } else if (addedName && (station === 2 || station === 3)) {
-          const key = station === 2 ? 'station2' : 'station3';
-          const arr = normalized[key];
-          if (Array.isArray(arr) && arr[slotIndex] != null) {
-            arr[slotIndex] = { ...arr[slotIndex], name: addedName };
-          }
-        }
-        if (import.meta.env?.DEV && exerciseName) {
-          const slotName = station === 1 ? (normalized.station1?.[phase === 2 ? 'phase2' : 'phase1']?.[slotIndex]?.name) : normalized[station === 2 ? 'station2' : 'station3']?.[slotIndex]?.name;
-          console.log('[EditableExerciseSlot] Add success', { mergedDay, slotName, sentName: (exerciseName || '').trim() });
-        }
-        onUpdate?.(normalized);
-      }
+      mergeWorkoutResponse(res.data, exerciseName);
       return Promise.resolve();
     } catch (err) {
       const status = err.response?.status;
@@ -210,6 +233,45 @@ export default function EditableExerciseSlot({
       return Promise.reject(err);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const shuffleDisabled =
+    station === 3 && ['Monday', 'Wednesday', 'Saturday'].includes(String(dayOfWeek || ''));
+
+  const shuffleSlot = async (e) => {
+    e?.stopPropagation?.();
+    e?.preventDefault?.();
+    if (shuffleDisabled || saving) return;
+    const id = getWorkoutId(workoutId);
+    if (!id && !(weekStartDate && dayOfWeek)) return;
+    setSaving(true);
+    setAddError(null);
+    try {
+      const pool = await buildExercisePool();
+      setExercises(pool);
+      const curId = currentExerciseId != null ? String(currentExerciseId) : '';
+      let candidates = pool.filter((ex) => String(ex._id) !== curId);
+      if (candidates.length === 0 && pool.length > 0) {
+        candidates = [...pool];
+      }
+      if (candidates.length === 0) {
+        setAddError('No exercises in this list. Add some in Exercise Lab.');
+        setTimeout(() => setAddError(null), 4000);
+        setSaving(false);
+        return;
+      }
+      const pick = candidates[Math.floor(Math.random() * candidates.length)];
+      setSaving(false);
+      selectExercise(pick);
+    } catch (err) {
+      setAddError('Could not load exercises to shuffle.');
+      setTimeout(() => setAddError(null), 4000);
+      setSaving(false);
+      if (import.meta.env?.DEV) {
+        // eslint-disable-next-line no-console
+        console.error('Shuffle slot failed', err);
+      }
     }
   };
 
@@ -275,16 +337,16 @@ export default function EditableExerciseSlot({
     }
   };
 
-  const handleConfirmAddNew = async () => {
-    if (!confirmModal?.typedName) return;
-    const name = confirmModal.typedName.trim();
+  const addNewExerciseByName = async (name) => {
+    const trimmed = (name || '').trim();
+    if (!trimmed) return;
     setConfirmModal(null);
     setDropdownOpen(false);
     setEditing(false);
     setAddError(null);
-    setOptimisticName(name);
+    setOptimisticName(trimmed);
     try {
-      await save(null, name);
+      await save(null, trimmed);
       notifyExerciseLab();
       if (!Array.isArray(exerciseOptions) || exerciseOptions.length === 0) {
         fetchExercisesList();
@@ -300,6 +362,12 @@ export default function EditableExerciseSlot({
         setTimeout(() => setAddError(null), 4000);
       }
     }
+  };
+
+  const handleConfirmAddNew = async () => {
+    if (!confirmModal?.typedName) return;
+    const name = confirmModal.typedName.trim();
+    await addNewExerciseByName(name);
   };
 
   const closeConfirmModal = () => {
@@ -334,8 +402,30 @@ export default function EditableExerciseSlot({
       <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
     </svg>
   );
+  const shuffleIcon = (
+    <svg
+      className="editable-shuffle-icon"
+      width="10"
+      height="10"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M2 18h1.4a4 4 0 0 0 2.6-1l7.2-5.4a4 4 0 0 1 2.6-1H22" />
+      <path d="m18 2 4 4-4 4" />
+      <path d="M2 6h1.4a4 4 0 0 1 2.6 1l7.2 5.4a4 4 0 0 0 2.6 1H22" />
+      <path d="m18 14 4 4-4 4" />
+    </svg>
+  );
   const commitInlineEdit = (val) => {
-    const name = (val || '').trim();
+    const name = String(val ?? '')
+      .replace(/\r\n|\r|\n/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
     setInlineEditValue(null);
     if (!name) return;
     const currentName = (value || '').trim();
@@ -350,12 +440,26 @@ export default function EditableExerciseSlot({
 
   if (!editing) {
     return (
-      <div className="editable-exercise-slot editable-exercise-slot-fixed">
+      <div
+        className={`editable-exercise-slot editable-exercise-slot-fixed${!shuffleDisabled ? ' with-shuffle' : ''}`}
+      >
         {slotLabel && <span className="editable-slot-label">{slotLabel}.</span>}
-        <input
+        {!shuffleDisabled && (
+          <button
+            type="button"
+            className="editable-exercise-shuffle-btn"
+            onClick={shuffleSlot}
+            disabled={saving}
+            title="Pick a random exercise from this list (same as dropdown)"
+            aria-label="Shuffle from dropdown list"
+          >
+            {shuffleIcon}
+          </button>
+        )}
+        <textarea
           ref={inlineInputRef}
-          type="text"
           className="editable-exercise-fixed-name editable-exercise-inline-input"
+          rows={2}
           value={inlineEditValue !== null ? inlineEditValue : (displayName || '')}
           onChange={(e) => setInlineEditValue(e.target.value)}
           onFocus={() => setInlineEditValue(inlineEditValue !== null ? inlineEditValue : (displayName || ''))}
@@ -395,6 +499,18 @@ export default function EditableExerciseSlot({
     <div className="editable-exercise-slot" ref={dropdownRef}>
       {slotLabel && <span className="editable-slot-label">{slotLabel}.</span>}
       <div className="editable-exercise-row">
+        {!shuffleDisabled && (
+          <button
+            type="button"
+            className="editable-exercise-shuffle-btn editable-exercise-shuffle-inline"
+            onClick={shuffleSlot}
+            disabled={saving}
+            title="Pick a random exercise from this list (same as dropdown)"
+            aria-label="Shuffle from dropdown list"
+          >
+            {shuffleIcon}
+          </button>
+        )}
         <div className="editable-exercise-dropdown-wrap" style={{ position: 'relative', flex: 1, minWidth: 0 }}>
           <div
             className={`editable-exercise-select editable-exercise-select-trigger ${dropdownOpen ? 'open' : ''}`}
@@ -435,7 +551,13 @@ export default function EditableExerciseSlot({
                   e.stopPropagation();
                   if (e.key === 'Enter') {
                     const name = (dropdownSearch || '').trim();
-                    if (name) commitTypedName(name);
+                    if (!name) return;
+                    const match = exercises.find((ex) => (ex.name || '').trim().toLowerCase() === name.toLowerCase());
+                    if (match) {
+                      commitTypedName(name);
+                    } else {
+                      addNewExerciseByName(name);
+                    }
                   }
                 }}
                 onClick={(e) => e.stopPropagation()}
@@ -462,17 +584,32 @@ export default function EditableExerciseSlot({
                 </button>
               </li>
             )}
-            {searchRaw.trim() && (
-              <li>
-                <button
-                  type="button"
-                  className="editable-exercise-option use-typed-name"
-                  onClick={() => commitTypedName(dropdownSearch.trim())}
-                >
-                  Use &quot;{searchRaw.trim()}&quot; → Edit or add new
-                </button>
-              </li>
-            )}
+            {searchRaw.trim() && (() => {
+              const typedName = dropdownSearch.trim();
+              const isNewName = !exercises.some((ex) => (ex.name || '').trim().toLowerCase() === typedName.toLowerCase());
+              return (
+                <li>
+                  {isNewName ? (
+                    <button
+                      type="button"
+                      className="editable-exercise-option use-typed-name add-new-btn"
+                      onClick={() => addNewExerciseByName(typedName)}
+                      disabled={saving}
+                    >
+                      Add &quot;{typedName}&quot; and save
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="editable-exercise-option use-typed-name"
+                      onClick={() => commitTypedName(typedName)}
+                    >
+                      Use &quot;{searchRaw.trim()}&quot; → Edit or add new
+                    </button>
+                  )}
+                </li>
+              );
+            })()}
             {filteredExercises.map((ex) => (
               <li key={ex._id}>
                 <button

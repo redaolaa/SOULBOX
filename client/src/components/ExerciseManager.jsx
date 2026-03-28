@@ -786,9 +786,9 @@ const ExerciseManager = () => {
           ) : (
             <>
               {newlyAddedExercises.length > 0 && (
-                <section className="exercise-subsection newly-added-section" aria-label="Newly added">
-                  <h3 className="subsection-title">Newly added</h3>
-                  <p className="subsection-hint">Edit to set focus, day type, etc. Once you save changes, the exercise moves to the list below.</p>
+                <section className="exercise-subsection newly-added-section" aria-label="Recently added">
+                  <h3 className="subsection-title">Recently added</h3>
+                  <p className="subsection-hint">Exercises you added from the workout (or here) appear here. Use <strong>Edit</strong> to set focus, day type, and filter—then they move to the list below.</p>
                   <div className="exercise-sublist">
                     {newlyAddedExercises.map(ex => (
                       <div key={ex._id} className="exercise-item">

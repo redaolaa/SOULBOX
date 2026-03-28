@@ -587,6 +587,16 @@
   color: var(--primary-color);
 }
 
+.editable-exercise-option.add-new-btn {
+  background: var(--primary-color);
+  color: var(--background);
+  border-color: var(--primary-color);
+  font-weight: 600;
+}
+.editable-exercise-option.add-new-btn:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
 .week-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
@@ -693,6 +703,7 @@
 .workout-preview {
   margin-top: 0.5rem;
   min-width: 0;
+  overflow: visible;
 }
 
 .workout-chip {
@@ -764,7 +775,9 @@
 }
 
 .past-week-phase {
-  flex: 1;
+  flex: 1 1 260px;
+  min-width: 0;
+  overflow: visible;
 }
 
 .past-week-phase-label {
@@ -838,6 +851,9 @@
   line-height: 1.4;
   border-left: 2px solid var(--border);
   margin-left: 0.15rem;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .triset-phase2-line::before {
@@ -903,6 +919,7 @@
   padding: 0.4rem 0;
   width: 100%;
   border-bottom: 1px solid var(--border);
+  overflow-x: visible;
 }
 
 .past-week-list.editable-list li:last-child {
@@ -913,6 +930,7 @@
   list-style: none;
   padding-left: 0;
   width: 100%;
+  overflow-x: visible;
 }
 
 .day-expanded {
@@ -943,21 +961,43 @@
   align-items: flex-start;
   gap: 0.5rem;
   width: 100%;
+  overflow: visible;
+}
+
+.past-week-list.editable-list li .editable-slot-label {
+  word-break: normal;
+  overflow-wrap: normal;
 }
 
 .editable-slot-label {
   flex-shrink: 0;
   font-weight: 600;
   color: var(--text-light);
-  width: 1.5rem;
+  min-width: 3.25rem;
+  width: max-content;
+  max-width: none;
   text-align: right;
+  white-space: nowrap;
+  overflow: visible;
+  padding-right: 0.35rem;
+  box-sizing: border-box;
 }
 
 .editable-exercise-row {
   flex: 1;
   display: flex;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 0.5rem;
+  min-width: 0;
+}
+
+/* Keep shuffle visible: row can shrink the trigger instead of overflowing */
+.editable-exercise-row .editable-exercise-shuffle-btn {
+  flex-shrink: 0;
+}
+
+.editable-exercise-row .editable-exercise-select {
   min-width: 0;
 }
 
@@ -988,22 +1028,41 @@
 
 .editable-exercise-slot-fixed {
   display: grid;
-  grid-template-columns: 1.5rem 1fr auto;
-  align-items: center;
-  gap: 0 0.75rem;
+  overflow: visible;
+  /* Letter + period (A. B. C.) — wide enough track + max-content so nothing clips */
+  grid-template-columns: minmax(3.25rem, max-content) minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 0.2rem 0.5rem;
   width: 100%;
   min-height: 1.75rem;
 }
 
+/* Shuffle gets its own column before the name so it is never covered by the input */
+.editable-exercise-slot-fixed.with-shuffle {
+  grid-template-columns: minmax(3.25rem, max-content) auto minmax(0, 1fr) auto;
+}
+
 .editable-exercise-slot-fixed .editable-slot-label {
-  width: auto;
-  text-align: right;
+  justify-self: end;
+  align-self: start;
+  margin-top: 0.2rem;
 }
 
 .editable-slot-actions {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
+  flex-shrink: 0;
+  justify-self: end;
+  align-self: start;
+  margin-top: 0.2rem;
+  position: relative;
+  z-index: 1;
+}
+
+.editable-exercise-slot-fixed .editable-exercise-shuffle-btn {
+  align-self: start;
+  margin-top: 0.2rem;
 }
 
 .editable-exercise-fixed-name {
@@ -1016,12 +1075,28 @@
 
 .editable-exercise-inline-input {
   width: 100%;
+  min-width: 0;
   padding: 0;
   border: none;
   outline: none;
   background: transparent;
   font: inherit;
   color: inherit;
+}
+
+.editable-exercise-slot-fixed textarea.editable-exercise-inline-input {
+  resize: none;
+  display: block;
+  min-height: 2.35em;
+  max-height: 6rem;
+  overflow-x: hidden;
+  overflow-y: auto;
+  line-height: 1.35;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  field-sizing: content;
+  vertical-align: top;
 }
 
 .editable-exercise-inline-input::placeholder {
@@ -1052,6 +1127,51 @@
 
 .editable-exercise-edit-btn .editable-pen-icon {
   display: block;
+}
+
+.editable-exercise-shuffle-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.375rem;
+  height: 1.375rem;
+  padding: 0;
+  margin: 0;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-light);
+  cursor: pointer;
+  opacity: 0.88;
+  position: relative;
+  z-index: 2;
+  box-sizing: border-box;
+  transition: background 0.16s ease, color 0.16s ease, opacity 0.16s ease, transform 0.12s ease;
+}
+
+.editable-exercise-shuffle-btn:hover:not(:disabled) {
+  background: var(--hover-bg);
+  color: var(--primary-color);
+  opacity: 1;
+}
+
+.editable-exercise-shuffle-btn:active:not(:disabled) {
+  transform: scale(0.94);
+}
+
+.editable-exercise-shuffle-btn:disabled {
+  opacity: 0.32;
+  cursor: not-allowed;
+}
+
+.editable-exercise-shuffle-btn .editable-shuffle-icon {
+  display: block;
+  flex-shrink: 0;
+}
+
+.editable-exercise-shuffle-inline {
+  margin-right: 0;
 }
 
 .editable-exercise-select-trigger {

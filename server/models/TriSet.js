@@ -9,7 +9,7 @@ const triSetSchema = new mongoose.Schema({
     required: true
   },
   dayType: {
-    type: String,
+    type: String, 
     enum: ['Technique'],
     required: true,
     default: 'Technique'
