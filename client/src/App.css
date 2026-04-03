@@ -1561,6 +1561,104 @@
   margin: 0.5rem 1rem 0.75rem;
 }
 
+.focus-bulk-section {
+  margin-bottom: 1.5rem;
+}
+
+.focus-bulk-panel {
+  padding: 0 1rem 1rem;
+}
+
+.focus-bulk-intro {
+  margin-top: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.focus-bulk-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 1.25rem;
+  align-items: flex-end;
+  margin-bottom: 0.75rem;
+}
+
+.focus-bulk-toolbar .form-group {
+  margin-bottom: 0;
+  min-width: 10rem;
+}
+
+.focus-bulk-search {
+  flex: 1 1 14rem;
+  max-width: 22rem;
+}
+
+.focus-bulk-search input {
+  width: 100%;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--background);
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.focus-bulk-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.focus-bulk-loading,
+.focus-bulk-empty {
+  margin: 0.5rem 0;
+}
+
+.focus-bulk-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.focus-bulk-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.focus-bulk-table th,
+.focus-bulk-table td {
+  padding: 0.5rem 0.65rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.focus-bulk-table th {
+  font-weight: 600;
+  color: var(--text-light);
+  background: var(--hover-bg);
+}
+
+.focus-bulk-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.focus-bulk-col-check {
+  width: 2.25rem;
+}
+
+.focus-bulk-name {
+  color: var(--text);
+  word-break: break-word;
+}
+
+.focus-bulk-row-selected td {
+  background: rgba(255, 255, 255, 0.04);
+}
+
 .exercises-section .filters {
   padding: 0.75rem 1rem 0;
 }

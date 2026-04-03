@@ -17,15 +17,29 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-producti
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// If DB drops after startup, return JSON instead of Mongoose buffer timeout
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api') && mongoose.connection.readyState !== 1) {
+    return res.status(503).json({
+      error: 'Database unavailable. The server cannot reach MongoDB. Check MONGODB_URI and network access (e.g. Atlas IP allowlist).'
+    });
+  }
+  next();
+});
 // Only serve server/public in development; in production we serve the React app from client/dist
 if (process.env.NODE_ENV !== 'production') {
   app.use(express.static('public'));
 }
 
-// Connect to MongoDB
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/soulbox')
-.then(() => console.log('Connected to MongoDB'))
-.catch(err => console.error('MongoDB connection error:', err));
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/soulbox';
+
+/** Atlas / cloud-friendly; avoids buffering forever then "buffering timed out" on login. */
+const mongooseConnectOptions = {
+  serverSelectionTimeoutMS: 15000,
+  socketTimeoutMS: 45000,
+  maxPoolSize: 10
+};
 
 // Auth middleware
 const authenticateToken = (req, res, next) => {
@@ -70,7 +84,8 @@ app.post('/api/auth/register', async (req, res) => {
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-    const user = await User.findOne({ email });
+    const emailNorm = email != null ? String(email).trim().toLowerCase() : '';
+    const user = await User.findOne({ email: emailNorm });
     
     if (!user || !(await user.comparePassword(password))) {
       return res.status(401).json({ error: 'Invalid credentials' });
@@ -330,6 +345,65 @@ app.put('/api/exercises/:id', authenticateToken, async (req, res) => {
       ? Object.values(error.errors).map((e) => e.message).join(' ')
       : error.message;
     res.status(400).json({ error: message });
+  }
+});
+
+// Bulk set focus for Station 1 exercises (Station 2/3 entries in the list are skipped).
+app.patch('/api/exercises/bulk-focus', authenticateToken, async (req, res) => {
+  try {
+    const { exerciseIds, focus } = req.body;
+    if (!Array.isArray(exerciseIds) || exerciseIds.length === 0) {
+      return res.status(400).json({ error: 'exerciseIds must be a non-empty array' });
+    }
+    let focusVal = null;
+    if (focus != null && String(focus).trim() !== '') {
+      const raw = String(focus).trim();
+      const canonical = EXERCISE_FOCUS_VALUES.find((f) => f === raw || f.toLowerCase() === raw.toLowerCase());
+      if (canonical === undefined) {
+        return res.status(400).json({ error: `Invalid focus. Use one of: ${EXERCISE_FOCUS_VALUES.join(', ')}` });
+      }
+      focusVal = canonical;
+    }
+    const userIdObj = req.user.userId instanceof mongoose.Types.ObjectId
+      ? req.user.userId
+      : new mongoose.Types.ObjectId(req.user.userId);
+    const oids = [];
+    for (const id of exerciseIds) {
+      try {
+        oids.push(new mongoose.Types.ObjectId(String(id)));
+      } catch (_) {
+        /* skip invalid id */
+      }
+    }
+    if (oids.length === 0) {
+      return res.status(400).json({ error: 'No valid exercise ids' });
+    }
+    const found = await Exercise.collection.find({ _id: { $in: oids }, userId: userIdObj }).toArray();
+    const foundIds = new Set(found.map((d) => String(d._id)));
+    const notFound = oids.filter((oid) => !foundIds.has(String(oid))).length;
+    const station1Ids = found.filter((d) => Number(d.station) === 1).map((d) => d._id);
+    const skippedNonStation1 = found.length - station1Ids.length;
+    if (station1Ids.length === 0) {
+      return res.json({
+        modifiedCount: 0,
+        matchedCount: 0,
+        skippedNonStation1,
+        notFound
+      });
+    }
+    const now = new Date();
+    const result = await Exercise.collection.updateMany(
+      { _id: { $in: station1Ids }, userId: userIdObj },
+      { $set: { focus: focusVal, updatedAt: now } }
+    );
+    res.json({
+      modifiedCount: result.modifiedCount,
+      matchedCount: station1Ids.length,
+      skippedNonStation1,
+      notFound
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -1393,7 +1467,18 @@ if (process.env.NODE_ENV === 'production') {
   }
 }
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-});
+async function start() {
+  try {
+    await mongoose.connect(MONGODB_URI, mongooseConnectOptions);
+    console.log('Connected to MongoDB');
+  } catch (err) {
+    console.error('MongoDB connection failed — fix MONGODB_URI and network access (Atlas: allow 0.0.0.0/0 or Render IPs):', err.message);
+    process.exit(1);
+  }
+
+  app.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+  });
+}
+
+start();

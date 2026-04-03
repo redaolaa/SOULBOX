@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import api from '../utils/api';
+import ExerciseFocusBulk from './ExerciseFocusBulk';
 
 const ExerciseManager = () => {
   const [exercises, setExercises] = useState([]);
@@ -31,10 +32,10 @@ const ExerciseManager = () => {
   const [triSetNewExerciseName, setTriSetNewExerciseName] = useState('');
   const [triSetCreatingExercise, setTriSetCreatingExercise] = useState(false);
   const triSetDropdownRef = useRef(null);
-  const [labSection, setLabSection] = useState('exercises'); // 'exercises' | 'trisets'
   const [triSetDayFilter, setTriSetDayFilter] = useState('Mixed'); // 'Mixed' = Monday, 'Lower' = Saturday
   const [triSetsSectionOpen, setTriSetsSectionOpen] = useState(false);
   const [exercisesSectionOpen, setExercisesSectionOpen] = useState(false);
+  const [focusBulkSectionOpen, setFocusBulkSectionOpen] = useState(false);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -359,6 +360,22 @@ const ExerciseManager = () => {
             {showForm ? 'Cancel' : '+ Add Exercise'}
           </button>
         </div>
+      </div>
+
+      <div className="focus-bulk-section collapsible-section">
+        <button
+          type="button"
+          className="collapsible-section-header"
+          onClick={() => setFocusBulkSectionOpen((v) => !v)}
+          aria-expanded={focusBulkSectionOpen}
+        >
+          <span className="collapsible-section-title">Bulk categorize focus</span>
+          <span className="collapsible-section-meta">Station 1 · Cardio, Abs, Upper, Lower, Mixed…</span>
+          <span className="collapsible-section-chevron">{focusBulkSectionOpen ? '▼' : '▶'}</span>
+        </button>
+        {focusBulkSectionOpen && (
+          <ExerciseFocusBulk exercises={exercises} onRefresh={loadExercises} loading={loading} />
+        )}
       </div>
 
       <div className="trisets-section collapsible-section">
