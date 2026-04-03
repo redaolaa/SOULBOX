@@ -1467,18 +1467,13 @@ if (process.env.NODE_ENV === 'production') {
   }
 }
 
-async function start() {
-  try {
-    await mongoose.connect(MONGODB_URI, mongooseConnectOptions);
-    console.log('Connected to MongoDB');
-  } catch (err) {
-    console.error('MongoDB connection failed — fix MONGODB_URI and network access (Atlas: allow 0.0.0.0/0 or Render IPs):', err.message);
-    process.exit(1);
-  }
+// Connect in the background so Render can start the process even if Atlas is slow or misconfigured.
+// API routes are protected by the middleware above (503 until connected). Fix Atlas IP allowlist + MONGODB_URI for real traffic.
+mongoose
+  .connect(MONGODB_URI, mongooseConnectOptions)
+  .then(() => console.log('Connected to MongoDB'))
+  .catch((err) => console.error('MongoDB connection error:', err.message));
 
-  app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
-}
-
-start();
+app.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
+});
