@@ -18,8 +18,36 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-producti
 app.use(cors());
 app.use(express.json());
 
+const mongoStateLabel = (s) =>
+  ({ 0: 'disconnected', 1: 'connected', 2: 'connecting', 3: 'disconnecting' }[s] || String(s));
+
+// Public: verify Render env + Mongo state (open in browser: /api/health)
+app.get('/api/health', (req, res) => {
+  const uriSet = Boolean(process.env.MONGODB_URI && String(process.env.MONGODB_URI).trim());
+  const isProd = process.env.NODE_ENV === 'production';
+  const rs = mongoose.connection.readyState;
+  if (isProd && !uriSet) {
+    return res.status(503).json({
+      ok: false,
+      mongodbUriConfigured: false,
+      database: mongoStateLabel(rs),
+      hint: 'Render → Environment → add MONGODB_URI with your full Atlas string (Database → Connect → Drivers).'
+    });
+  }
+  const ok = rs === 1;
+  return res.status(ok ? 200 : 503).json({
+    ok,
+    mongodbUriConfigured: uriSet,
+    database: mongoStateLabel(rs),
+    hint: ok
+      ? null
+      : 'Atlas: Network Access 0.0.0.0/0, cluster not paused, password in URI URL-encoded (! → %21). See Render logs for MongoDB errors.'
+  });
+});
+
 // If DB drops after startup, return JSON instead of Mongoose buffer timeout
 app.use((req, res, next) => {
+  if (req.path === '/api/health') return next();
   if (req.path.startsWith('/api') && mongoose.connection.readyState !== 1) {
     return res.status(503).json({
       error: 'Database unavailable. The server cannot reach MongoDB. Check MONGODB_URI and network access (e.g. Atlas IP allowlist).'
@@ -34,12 +62,62 @@ if (process.env.NODE_ENV !== 'production') {
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/soulbox';
 
+function mongoUriHostForLog(uri) {
+  const m = String(uri).match(/mongodb(\+srv)?:\/\/(?:[^@/]+@)?([^/?]+)/i);
+  return m ? m[2] : '(could not parse host)';
+}
+
+if (process.env.NODE_ENV === 'production' && !process.env.MONGODB_URI) {
+  console.error('SOULBOX: MONGODB_URI is not set. Add it in Render → Environment → Environment Variables.');
+} else {
+  console.log(`SOULBOX: MongoDB target host: ${mongoUriHostForLog(MONGODB_URI)}`);
+}
+
 /** Atlas / cloud-friendly; avoids buffering forever then "buffering timed out" on login. */
 const mongooseConnectOptions = {
-  serverSelectionTimeoutMS: 15000,
+  serverSelectionTimeoutMS: 20000,
   socketTimeoutMS: 45000,
   maxPoolSize: 10
 };
+
+const MONGO_RETRY_INTERVAL_MS = 45000;
+
+async function tryMongoConnectOnce() {
+  const rs = mongoose.connection.readyState;
+  if (rs === 1) return true;
+  if (rs === 2) return false;
+  try {
+    await mongoose.connect(MONGODB_URI, mongooseConnectOptions);
+    console.log('Connected to MongoDB');
+    return true;
+  } catch (err) {
+    console.error('MongoDB connection error:', err.message);
+    return false;
+  }
+}
+
+async function connectMongoWithRetries() {
+  const maxAttempts = 5;
+  const delayMs = 4000;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const ok = await tryMongoConnectOnce();
+    if (ok) return;
+    if (attempt < maxAttempts) {
+      console.error(`MongoDB: retry ${attempt}/${maxAttempts} in ${delayMs / 1000}s…`);
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
+  }
+  console.error(
+    'SOULBOX: Initial MongoDB connect failed. Will keep retrying every 45s. Fix: Render MONGODB_URI (URL-encode special chars in password, e.g. ! → %21), Atlas Network Access 0.0.0.0/0, cluster running (not paused).'
+  );
+}
+
+function startMongoReconnectLoop() {
+  setInterval(async () => {
+    if (mongoose.connection.readyState === 1) return;
+    await tryMongoConnectOnce();
+  }, MONGO_RETRY_INTERVAL_MS);
+}
 
 // Auth middleware
 const authenticateToken = (req, res, next) => {
@@ -1467,12 +1545,9 @@ if (process.env.NODE_ENV === 'production') {
   }
 }
 
-// Connect in the background so Render can start the process even if Atlas is slow or misconfigured.
-// API routes are protected by the middleware above (503 until connected). Fix Atlas IP allowlist + MONGODB_URI for real traffic.
-mongoose
-  .connect(MONGODB_URI, mongooseConnectOptions)
-  .then(() => console.log('Connected to MongoDB'))
-  .catch((err) => console.error('MongoDB connection error:', err.message));
+// Background connect + burst retries, then periodic retry if Atlas / env was wrong at boot.
+connectMongoWithRetries();
+startMongoReconnectLoop();
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
